@@ -1,48 +1,27 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------
+from base import *
 import time
-import board
-import shared
-from config import * # pylint: disable=W0614
+import board, shared
 from gpio import GPIO
+from config import * # pylint: disable=W0614
 # ---------------------------------------------------------------------------------------
-def test_SetInitialGPIOState():
-    """
-    Nur für Tests: setzt den initialen GPIO-Status
-    """
-    if not hasattr(GPIO, 'allow_write'):
-        raise RuntimeError("Need GPIO dummy for setting initial board state!")
-
-    with GPIO.write_context():
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.output(REED_UPPER, 1)
-        GPIO.output(REED_LOWER, 0) # Tür geschlossen
-        GPIO.output(SHUTDOWN_BUTTON, 1)
-# ---------------------------------------------------------------------------------------
-def check(condition, message, *args):
-    if condition:
-        print ('[OK] ' + (message % args))
-    else:
-        print ('[FAIL] ' + (message % args))
-        raise RuntimeError(message % args)
-# ---------------------------------------------------------------------------------------
-def test_board():
+@testfunction
+def test():
     if not __debug__:
         raise RuntimeError("Tests have to be executed in DEBUG mode.")
 
-    shared.configureLogging("test")
-    print ("Running Test...")
     GPIO.setwarnings(False)
-    test_SetInitialGPIOState()
+    SetInitialGPIOState()
     b = board.Board()
 
     check(b.IsDoorClosed(), "Initially door should be closed.")
     check(not b.IsDoorOpen(), "Initially door should not be open.")
 
     cbres = []
-    def cb():
-        cbres.append(True)
+    def cb(reed_closed):
+        cbres.append(reed_closed)
 
     # --- Tür öffnen ---
 
@@ -58,11 +37,11 @@ def test_board():
 
     with GPIO.write_context():
         GPIO.output(REED_UPPER, REED_CLOSED) # oben auf LOW
-    time.sleep(0.2) # anderen Thread ranlassen
+    time.sleep(0.5) # anderen Thread ranlassen
 
     check(b.IsDoorOpen(), "Door should be opened when upper reed is LOW")
     check(not b.IsDoorClosed(), "Door should not be closed when lower reed is HIGH")
-    check(cbres[-1] == True, "Callback for open door has not be called.")
+    check(cbres and (cbres[-1] == True), "Callback for open door has not be called.")
 
     res = b.OpenDoor()
     check(res < 0, "Calling OpenDoor() while door is opened shouldn't be possible")
@@ -86,7 +65,7 @@ def test_board():
 
     check(b.IsDoorClosed(), "Door should be closed when lower reed is LOW")
     check(not b.IsDoorOpen(), "Door should not be open when upper reed is HIGH")
-    check(cbres[-1] == True, "Callback for close door has not be called.")
+    check(cbres and (cbres[-1] == True), "Callback for close door has not be called.")
 
     res = b.CloseDoor()
     check(res < 0, "Calling CloseDoor() while door is open shouldn't be possible.")
@@ -108,16 +87,8 @@ def test_board():
     check(b.IsOutdoorLightOn(), "Outdoor light should be on.")
     b.SwitchOutdoorLight(False)
     check(not b.IsOutdoorLightOn(), "Outdoor light should be off.")
-
     print ("Finished.")
-    return b
-
-def test_async_call():
-    pass
-
-def test_all():
-    test_board()
-    test_async_call()
-
+    return True
+# ---------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    test_all()
+    test()
