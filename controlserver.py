@@ -34,9 +34,15 @@ class JobTimer(LoggableClass):
         self.last_door_check = 0
 
     def Terminate(self):
+        self.info("Termination JobTimer.")
         self.terminate = True
 
+    def Start(self):
+        self.info("Starting JobTimer.")
+        self.thread.start()
+
     def __call__(self):
+        self.info("JobTimer started.")
         dawn, dusk = sunrise.getSunTimes()
         while not self.terminate:
             now = time.time()
@@ -62,6 +68,7 @@ class JobTimer(LoggableClass):
                         self.controller.CloseDoor()
 
             time.sleep(DOORCHECK_INTERVAL)
+        self.info("JobTimer stopped.")
 # ------------------------------------------------------------------------
 class Controller(LoggableClass):
     """
@@ -135,19 +142,32 @@ class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     pass
 # ------------------------------------------------------------------------
 def main():
+    """
+    Initialisiert das Logging und den Controller und startet diesen.
+    Ausführung bis CTRL-C.
+    """
     logger = shared.getLogger("ctrl-server")
     address = (CONTROLLER_HOST, CONTROLLER_PORT)
     logger.info("Starting XML-RPC-Server as %r", address)
-    controller = Controller()
     try:
-        ds = DataServer(address, allow_none = True)
-        ds.register_instance(controller)
-        logger.debug("Start serving.")
-        ds.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("Shutdown due to keyboardinterrupt.")
+        try:
+            controller = Controller()
+        except Exception:
+            logger.exception("Error during initialization, stopped.")
+            return
+
+        try:
+            ds = DataServer(address, allow_none = True)
+            ds.register_instance(controller)
+            logger.debug("Start serving.")
+            ds.serve_forever()
+        except KeyboardInterrupt:
+            logger.info("Shutdown due to keyboardinterrupt.")
+        except Exception:
+            logger.exception("Unhandled error, stopped.")
+        finally:
+            controller.CleanUp()
     finally:
-        controller.CleanUp()
         logger.info("Finished.")
         shared.logging.shutdown()
 # ------------------------------------------------------------------------

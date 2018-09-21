@@ -8,13 +8,22 @@ also die RPi-Nummerierung am Header.
 LOGDIR = 'log'               #: Log-Verzeichnis relativ zu www (root)
 RESOURCEDIR = 'resources'    #: Resourcen-Verzeichnis relativ zu www (root)
 SCRIPTDIR = 'scripts'        #: Script-Verzeichnis relativ zu www (root)
-MAPFILE = r'E:\gpio.mm'      #: Auf -1 setzen wenn Release!
+MAPFILE = -1                 #: Auf -1 setzen wenn Release!
 SUNSETFILE = 'sunset.data'   #: Name der Datei mit den Sonnenzeiten relativ zur 'RESOURCEDIR'
 # ------------------------------------------------------------------------
+#: Template für die Logausgabe (siehe logging - Modul)
+LOGFORMAT = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+
+#: Template für das Zeitformat der Logausgabe (siehe logging - Modul)
+LOGDATEFMT = '%m-%d %H:%M:%S'
+
+#: Logging Level, 10 = logging.DEBUG
+LOGLEVEL = 10
+# ------------------------------------------------------------------------
 # Die folgenden Pins sind OUTPUT-Pins
-PIN_RELAIS_1 = 33            #: PIN für Relais 1
-PIN_RELAIS_2 = 35            #: PIN für Relais 2
-PIN_RELAIS_3 = 37            #: PIN für Relais 3
+PIN_RELAIS_1 = 36            #: PIN für Relais 1
+PIN_RELAIS_2 = 38            #: PIN für Relais 2
+PIN_RELAIS_3 = 40            #: PIN für Relais 3
 PIN_RELAIS_4 = 31            #: PIN für Relais 4
 
 # Die nachstehenden Pins sind INPUT-Pins
