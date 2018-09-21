@@ -1,0 +1,3 @@
+[submodule "gpio"]
+	path = gpio
+	url = https://github.com/and-fs/pigpio-mockup.git
