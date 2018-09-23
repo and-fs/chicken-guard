@@ -21,9 +21,9 @@ LOGDATEFMT = '%m-%d %H:%M:%S'
 LOGLEVEL = 10
 # ------------------------------------------------------------------------
 # Die folgenden Pins sind OUTPUT-Pins
-PIN_RELAIS_1 = 36            #: PIN für Relais 1
+PIN_RELAIS_1 = 40            #: PIN für Relais 1
 PIN_RELAIS_2 = 38            #: PIN für Relais 2
-PIN_RELAIS_3 = 40            #: PIN für Relais 3
+PIN_RELAIS_3 = 36            #: PIN für Relais 3
 PIN_RELAIS_4 = 31            #: PIN für Relais 4
 
 # Die nachstehenden Pins sind INPUT-Pins

@@ -39,6 +39,8 @@ def configureLogging(name, filemode = 'w'):
 
     logging_configured = True
 
+    log_path.mkdir(parents = True, exist_ok = True)
+
     logfilepath = log_path.joinpath(name + '.log')
 
     if not 'w' in filemode:

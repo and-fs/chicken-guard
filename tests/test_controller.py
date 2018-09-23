@@ -15,7 +15,17 @@ def test():
 
     # --- Tür öffnen ---
     res = c.OpenDoor()
-    check(res == 1, "Calling OpenDoor() when door is closed should be possible!")
+    check(res == False, "Expected door opener to run into timeout!")
+
+    f = Future(c.OpenDoor)
+    # da die Rückmeldung nur dann positiv erfolgt, wenn der Türkontakt auch geschlossen
+    # wurde, müssen wir das jetzt hier tun.
+    with GPIO.write_context():
+        GPIO.output(REED_LOWER, REED_OPENED) # unteres Reed offen
+        GPIO.output(REED_UPPER, REED_CLOSED) # oberes Reed geschlossen
+
+    res = f.WaitForResult(waittime = 5.0)    
+    check(res == True, "Calling OpenDoor() did not return expected result!")
     
     res = c.OpenDoor()
     check(res < 0, "Calling OpenDoor() while door is moving should not be possible!")

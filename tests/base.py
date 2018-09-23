@@ -6,6 +6,7 @@ Test-Basis-Modul, immer als erstes importieren!
 # ---------------------------------------------------------------------------------------
 import pathlib, sys
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+import threading
 # ---------------------------------------------------------------------------------------
 from config import *
 CATCH_TEST_ERRORS = True
@@ -74,4 +75,34 @@ def SetInitialGPIOState():
         GPIO.output(REED_UPPER, 1)
         GPIO.output(REED_LOWER, 0) # Tür geschlossen
         GPIO.output(SHUTDOWN_BUTTON, 1)
+# ---------------------------------------------------------------------------------------
+class Future(object):
+    def __init__(self, function, *args, **kwargs):
+        assert callable(function), "function has to be a callable!"
+        self.function = function
+        self.condition = threading.Condition()
+        self.thread = threading.Thread(target = self._Execute, args = args, kwargs = kwargs)
+        self.thread.start()
+
+    def _Execute(self, *args, **kwargs):
+        try:
+            result = self.function(*args, **kwargs)
+        except Exception as e:
+            result = e
+        with self.condition:
+            self.result = result
+            self.condition.notify_all()
+
+    def HasResult(self):
+        with self.condition:
+            return hasattr(self, 'result')
+
+    def WaitForResult(self, waittime = None):
+        with self.condition:
+            if hasattr(self, 'result'):
+                return self.result
+            self.condition.wait(waittime)
+            if hasattr(self, 'result'):
+                return self.result
+            raise TimeoutError
 # ---------------------------------------------------------------------------------------
