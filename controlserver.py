@@ -83,46 +83,53 @@ class Controller(LoggableClass):
         self.board.SetStateChangeHandler(self._BoardStateChanged)
         self.job_timer = JobTimer(self)
 
-    def SwitchIndoorLight(self, swon: bool):
+    def SwitchIndoorLight(self, swon: bool) -> bool:
         self.debug("Received indoor light switch to %r request.", swon)
         self.board.SwitchIndoorLight(swon)
         return swon
 
-    def SwitchOutdoorLight(self, swon: bool):
+    def SwitchOutdoorLight(self, swon: bool) -> bool:
         self.debug("Received outdoor light switch to %r request.", swon)
         self.board.SwitchOutdoorLight(swon)
         return swon
 
-    def CloseDoor(self):
+    def IsIndoorLightOn(self) -> bool:
+        return self.board.IsIndoorLightOn()
+
+    def IsOutdoorLightOn(self) -> bool:
+        return self.board.IsOutdoorLightOn()
+
+    def CloseDoor(self) -> bool:
         self.debug("Received CloseDoor request.")
         result = self.board.CloseDoor(waittime = MAX_DOOR_MOVE_DURATION)
         return result == 1
 
-    def OpenDoor(self):
+    def OpenDoor(self) -> bool:
         self.debug("Received OpenDoor request.")
         result = self.board.OpenDoor(waittime = MAX_DOOR_MOVE_DURATION)
         return result == 1
 
     def StopDoor(self):
         self.debug("Received StopDoor request.")
-        return self.board.StopDoor()
+        self.board.StopDoor()
 
-    def IsDoorOpen(self):
+    def IsDoorOpen(self) -> bool:
         return self.board.IsDoorOpen()
 
-    def IsDoorClosed(self):
+    def IsDoorClosed(self) -> bool:
         return self.board.IsDoorClosed()
 
-    def GetBoardState(self):
+    def GetBoardState(self) -> dict:
         self.debug("Received state request.")
         return self.board.GetState()
 
     def _BoardStateChanged(self, state):
+        self.info("Board state changed: %s", state)
         with self._state_lock:
             self._state = (True, state)
             self._state_cond.notify_all()
 
-    def WaitForStateChange(self, waittime = 30.0):
+    def WaitForStateChange(self, waittime = 30.0) -> tuple:
         with self._state_lock:
             self._state_cond.wait(timeout = waittime)
             notified, state = self._state

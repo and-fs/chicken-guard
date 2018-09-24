@@ -34,7 +34,7 @@ class Sensors(LoggableClass):
             self.error("Cannot read from channel %d!", channel)
 
         values = []
-        for _ in range(count + 1):
+        for _ in range(count):
             try:
                 # als erstes den Kanal addressieren
                 self._bus.write_byte(self.SMBUS_ADDR, channel)
@@ -268,7 +268,7 @@ class Board(LoggableClass):
             ohne Signalisierung überschritten wurde.
         """
 
-        self.debug("OpenDoor(%r)", callback)
+        self.debug("OpenDoor(%r, %r)", callback, waittime)
         if self.IsDoorMoving():
             self.warn('Received OpenDoor command while door is currently moving, ignored.')
             return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
@@ -299,30 +299,45 @@ class Board(LoggableClass):
             if result:
                 self.debug("Door open has been signaled with waittime.")
             else:
-                self.warn("Expected door open has not been signaled within %.4f seconds.", waittime)
+                self.warn("Expected 'door open' has not been signaled within %.4f seconds.", waittime)
         return result
 
     def CloseDoor(self, callback = None, waittime = None):
         """
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
-        self.debug("CloseDoor(%r)", callback)
+        self.debug("CloseDoor(%r, %r)", callback, waittime)
         if self.IsDoorMoving():
             self.warn('Received CloseDoor command while door is currently moving, ignored.')
             return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
         if self.IsDoorClosed():
             self.warn('Received CloseDoor command while door is already closed, ignored.')
             return -2
+
+        self.CheckForError(self._waiter is None,
+            "Waiting condition is set when using CloseDoor!"
+        )
+
+        if waittime:
+            self._waiter = self._wait_condition
+
+        self.debug("Setting callback for OpenDoor to %r", callback)
         self.movement_stop_callback = callback
-        self.door_state = Board.DOOR_MOVING_DOWN
+        self.door_state = Board.DOOR_MOVING_UP
+
         GPIO.output(MOVE_DIR, MOVE_DOWN) # als erstes das Richtungs-Relais schalten
         GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
 
         result = 1
         if not waittime is None:
+            self.debug("Waiting in CloseDoor for %.4f seconds.", waittime)
             with self._wait_lock:
                 result = 1 if self._waiter.wait(waittime) else 0
             self._waiter = None
+            if result:
+                self.debug("Door closed has been signaled with waittime.")
+            else:
+                self.warn("Expected 'door closed' has not been signaled within %.4f seconds.", waittime)
         return result
 
     def StopDoor(self):
@@ -340,7 +355,6 @@ class Board(LoggableClass):
 
     def GetLight(self):
         return self.sensor.ReadLight()
-
 
     def GetState(self):
         """

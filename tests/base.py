@@ -65,26 +65,56 @@ def check(condition, message, *args):
 # ---------------------------------------------------------------------------------------
 def SetInitialGPIOState():
     """
-    Setzt den initialen GPIO-Status
+    Setzt den initialen GPIO-Status für die Tests.
     """
     if not hasattr(GPIO, 'allow_write'):
         raise RuntimeError("Need GPIO dummy for setting initial board state!")
 
     with GPIO.write_context():
         GPIO.setmode(GPIO.BOARD)
-        GPIO.output(REED_UPPER, 1)
-        GPIO.output(REED_LOWER, 0) # Tür geschlossen
+        GPIO.output(REED_UPPER, REED_OPENED)
+        GPIO.output(REED_LOWER, REED_CLOSED) # Tür geschlossen
         GPIO.output(SHUTDOWN_BUTTON, 1)
 # ---------------------------------------------------------------------------------------
 class Future(object):
+    """
+    Future-Implementierung für die Tests.
+    Führt eine Funktion nebenläufig aus, das Ergebnis kann
+    dann zu einem späteren Zeitpunkt abgefragt werden.
+
+    Beispiel: ```python
+        import time
+        def time_consuming_pow2(a):
+            time.sleep(2.0)
+            return "%d * %d is %d" % (a, a, a * a)
+
+        f = Future(time_consuming_pow2, 10)
+        print (f.HasResult()) # False
+        time.sleep(1.0)
+        print (f.HasResult()) # False
+        print (f.WaitForResult(2.0)) # "10 * 10 is 100"
+    ```
+    """
     def __init__(self, function, *args, **kwargs):
+        """
+        Initializes the future with a reference to
+        the callable `function` which will be executed
+        in parallel.
+        Both `args` and `kwargs` will be passed to
+        the `function` on execution.
+        """
         assert callable(function), "function has to be a callable!"
         self.function = function
         self.condition = threading.Condition()
+        self.start_cond = threading.Condition()
+        self.started = False
         self.thread = threading.Thread(target = self._Execute, args = args, kwargs = kwargs)
         self.thread.start()
 
     def _Execute(self, *args, **kwargs):
+        with self.start_cond:
+            self.started = True
+            self.start_cond.notify_all()
         try:
             result = self.function(*args, **kwargs)
         except Exception as e:
@@ -93,11 +123,39 @@ class Future(object):
             self.result = result
             self.condition.notify_all()
 
-    def HasResult(self):
+    def WaitForExectionStart(self, waittime: float = None) -> bool:
+        """
+        Waits for the execution thread to start.
+
+        Returns as soon as the execution of the contained
+        function has been started or the waittime (in seconds or
+        fractions thereof) has been reached.
+
+        Returns:
+            If the execution thread has been started within
+            given time.
+        """
+        with self.start_cond:
+            self.start_cond.wait(waittime)
+            return self.started
+
+    def HasResult(self) -> bool:
+        """
+        Returns if the result of the contained function is
+        available.
+        """
         with self.condition:
             return hasattr(self, 'result')
 
     def WaitForResult(self, waittime = None):
+        """
+        Waits `waittime` seconds (or fractions thereof)
+        for the contained function to be executed and
+        returns it's result.
+
+        If waittime has been reached without getting
+        a result, a TimeoutError is raised.
+        """
         with self.condition:
             if hasattr(self, 'result'):
                 return self.result

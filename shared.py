@@ -50,7 +50,7 @@ def configureLogging(name, filemode = 'w'):
             f.write(os.linesep)
 
     logging.basicConfig(
-        filename = logfilepath,
+        filename = str(logfilepath),
         filemode = filemode,
         format = LOGFORMAT,
         datefmt = LOGDATEFMT,
