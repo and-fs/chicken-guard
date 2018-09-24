@@ -93,8 +93,8 @@ class Board(LoggableClass):
         self.state_change_handler = None
 
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(OUTPUT_PINS, GPIO.OUTPUT)
-        GPIO.setup(INPUT_PINS, GPIO.INPUT)
+        GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = GPIO.HIGH)
+        GPIO.setup(INPUT_PINS, GPIO.IN)
         GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed)
 
         self.CheckForError(
@@ -215,7 +215,9 @@ class Board(LoggableClass):
                 gerufen wurde (siehe StopDoor).
         """
         if channel > 0:
-            self.info("Reed contact closed, stopping motor.")
+            self.info("%s reed contact closed, stopping motor.",
+                "Upper" if channel == REED_UPPER else "Lower"
+            )
         else:
             self.info("Door stop received, stopping motor.")
         
