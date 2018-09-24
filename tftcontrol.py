@@ -28,12 +28,13 @@ class ScreenController(LoggableClass):
 
     def __init__(self, logger):
         LoggableClass.__init__(self, logger = logger)
+        self.setState({})
         self.shutdown = False
         self._needs_update = True
         self.last_input = time.time()
         self.condition = Condition()
         self.tft_state = True
-        self.light_state_indoor = False
+        self.light_state_indoor = 236
         self.light_state_outdoor = False
         self.slots = { (250,  40, 310,  85): self.doorUp,
                        (250, 105, 310, 165): self.doorStop,
@@ -63,8 +64,18 @@ class ScreenController(LoggableClass):
             self.doCleanup()
         self.info("Finished.")
 
+    def setState(self, state):
+        ns = {
+            "door": state.get("door", "n/a"),
+            "indoor_light": "an" if state.get("indoor_light", False) else "aus",
+            "outdoor_light": "an" if state.get("outdoor_light", False)  else "aus",
+            "temperatur": str(state.get("temperature", "n/a")),
+            "light_sensor": str(state.get("light_sensor", "n/a")),
+        }
+        self.state = ns
+
     def onStateChanged(self, state):
-        self.state = state
+        self.setState(state)
         self.needsUpdate()
 
     def needsUpdate(self):
@@ -144,26 +155,6 @@ class ScreenController(LoggableClass):
         else:
             print ("Touch up.")
 
-    def getDispInfo(self):
-
-        result = dict(
-            datetime = datetime.now().strftime("%d.%m.%Y %H:%M"),
-            temperature = sensor_data["temperature"],
-            humidity = sensor_data["humidity"],
-            indoor_light = "an" if self.light_state_indoor else "aus",
-            outdoor_light = "an" if self.light_state_outdoor else "aus",
-            next = "Tür schließt um 22:30",
-        )
-
-        if sensor_data["reed_upper"]:
-            result["door"] = "offen"
-        elif sensor_data["reed_lower"]:
-            result["door"] = "zu"
-        else:
-            result["door"] = "n/a"
-
-        return result
-
     def doCleanup(self):
         self.debug("Cleaning up.")
         self.tft.switchOff()
@@ -233,24 +224,24 @@ class ScreenController(LoggableClass):
         draw.line((115, 100, 115, 200), fill = "gray", width = 3)
 
         # Info - Texte
-        info = self.getDispInfo()
+        dt = datetime.now().strftime("%H:%M")
         draw.text((   5,   3), "Zeit:", font = self.FONT, fill = "yellow")
-        draw.text((  10,  20), info["datetime"], font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,  20), dt, font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,   53), "Demnächst:", font = self.FONT, fill = "yellow")
-        draw.text((  10,   70), info["next"], font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,   70), "todo", font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
-        draw.text((  10,  120), "%.1f° C" % (info["temperature"],), font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
         
-        draw.text((  120,  103), "Luftfeuchte:", font = self.FONT, fill = "yellow")
-        draw.text((  130,  120), "%.1f %%" % (info["humidity"],), font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  120,  103), "LIcht:", font = self.FONT, fill = "yellow")
+        draw.text((  130,  120), self.state["light_sensor"], font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,  153), "Tür:", font = self.FONT, fill = "yellow")
-        draw.text((  10,  170), info["door"], font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,  170), self.state["door"], font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((  120,  153), "Licht:", font = self.FONT, fill = "yellow")
-        draw.text((  130,  170), info["indoor_light"], font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  130,  170), "todo", font = self.FONT_BIG, fill = "white", align = "right")
 
         # unterer Rand (Licht)
         draw.line((0, 200, 230, 200), fill = "gray", width = 3)
