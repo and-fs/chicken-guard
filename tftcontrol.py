@@ -26,8 +26,8 @@ class ScreenController(LoggableClass):
     FONT_BIG = ImageFont.truetype('/usr/share/fonts/truetype/lato/Lato-Medium.ttf', 22)
     BULB = Image.open(shared.resource_path.joinpath("bulb_white.png")).convert("RGBA")
 
-    def __init__(self):
-        LoggableClass.__init__(self, name = "ScreenController")
+    def __init__(self, logger):
+        LoggableClass.__init__(self, logger = logger)
         self.shutdown = False
         self._needs_update = True
         self.last_input = time.time()
@@ -272,8 +272,21 @@ class ScreenController(LoggableClass):
         self.tft.display()
 
 def main():
-    ctrl = ScreenController()
-    ctrl()
+    logger = shared.getLogger("ScreenController")
+
+    try:
+        ctrl = ScreenController(logger)
+    except Exception:
+        logger.exception("Error while initializing screen controller.")
+        return -1
+
+    try:
+        ctrl()
+    except Exception:
+        logger.exception("Error while running screen controller.")
+        return -2
+
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
