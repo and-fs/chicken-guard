@@ -85,7 +85,7 @@ CONTROLLER_PORT = 8010        #: Port des XMLRPC-Controller-Server
 #: Adresse des XMLRPC-Server, der die Board-Schnittstelle bereitstellt
 CONTROLLER_URI = 'http://%s:%s' % (CONTROLLER_HOST, CONTROLLER_PORT)
 # ------------------------------------------------------------------------
-MAX_DOOR_MOVE_DURATION = 2 #: Maximale Zeit (in Sekunden) die die Tür für
+MAX_DOOR_MOVE_DURATION = 5 #: Maximale Zeit (in Sekunden) die die Tür für
                            #: eine volle Bewegung benötigt.
 # ------------------------------------------------------------------------
 #: Anzahl Sekunden nach der der TFT ohne Aktivität (Touch) ausgeschalten

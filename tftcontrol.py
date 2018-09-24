@@ -28,6 +28,7 @@ class ScreenController(LoggableClass):
 
     def __init__(self, logger):
         LoggableClass.__init__(self, logger = logger)
+        self.door_state = "n/a"
         self.setState({})
         self.shutdown = False
         self._needs_update = True
@@ -49,8 +50,8 @@ class ScreenController(LoggableClass):
         self.tft = lib_tft24t.TFT24T(spidev.SpiDev(), GPIO, landscape = True)
         self.tft.initLCD(self.DC, self.RST, self.LED, switch_on = self.tft_state)
         self.tft.initTOUCH(self.TOUCH_IRQ)
-
-        GPIO.add_event_detect(self.TOUCH_IRQ, GPIO.RISING, callback = self.onTouchEvent, bouncetime = 50)
+        # TOUCH_IRQ = Pen!
+        GPIO.add_event_detect(self.TOUCH_IRQ, GPIO.BOTH, callback = self.onTouchEvent, bouncetime = 20)
 
         InstallStateChangeHandler(self, self.onStateChanged, self.shouldShutdown)
 
@@ -65,17 +66,23 @@ class ScreenController(LoggableClass):
         self.info("Finished.")
 
     def setState(self, state):
+        # moving_up, closed, open, moving_down
+        self.door_state = state.get("door", "n/a")
+        self.light_state_indoor = state.get("indoor_light", False)
+        self.light_state_outdoor = state.get("outdoor_light", False)
         ns = {
-            "door": state.get("door", "n/a"),
-            "indoor_light": "an" if state.get("indoor_light", False) else "aus",
-            "outdoor_light": "an" if state.get("outdoor_light", False)  else "aus",
+            "door": self.door_state,
+            "indoor_light": "an" if self.light_state_indoor else "aus",
+            "outdoor_light": "an" if self.light_state_outdoor  else "aus",
             "temperature": str(state.get("temperature", "n/a")),
             "light_sensor": str(state.get("light_sensor", "n/a")),
         }
         self.state = ns
 
     def onStateChanged(self, state):
+        print ("New state: ", state)
         self.setState(state)
+        print ("Door state: ", self.door_state)
         self.needsUpdate()
 
     def needsUpdate(self):
@@ -133,8 +140,8 @@ class ScreenController(LoggableClass):
                 last_screen_update = time.time()
 
     def onTouchEvent(self, channel):
+        print("Touch event!")
         self.last_input = time.time()
-
         if self.tft.penDown():
             if not self.tft_state:
                 self.debug("Woke up display after inactivity.")
@@ -161,21 +168,23 @@ class ScreenController(LoggableClass):
         GPIO.cleanup()
 
     def OnDoorOpened(self, result = None):
-        self.debug("Received door open callback: %r", result)
-        self.door_state = "opened"
+        self.debug("Received door open callback: door is %s.", "open now" if result else "still closed")
+        self.door_state = "open"
         self.needsUpdate()
 
     def doorUp(self):
         self.info("Door up button pressed.")
+        self.door_state = "moving_up"
         AsyncFunc("OpenDoor", callback = self.OnDoorOpened)()
 
     def OnDoorClosed(self, result = None):
-        self.debug("Received door close callback: %r", result)
+        self.debug("Received door close callback: door is %s.", "closed now" if result else "still open")
         self.door_state = "closed"
         self.needsUpdate()
 
     def doorDown(self):
         self.info("Door down button pressed.")
+        self.door_state = "moving_down"
         AsyncFunc("CloseDoor", callback = self.OnDoorClosed)()
 
     def OnDoorStopped(self, result = None):
@@ -211,17 +220,22 @@ class ScreenController(LoggableClass):
         # rechter Rand (Türsteuerung)
         draw.text((265,  5), "TÜR", font = self.FONT, fill = "white")
         draw.line((230, 0, 230, 240), fill = "gray", width = 3)
-        # oberes Dreieck (Öffnen)
-        draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")
-        # unteres Dreieck (Schließen)
-        draw.polygon([(250, 185), (280, 230), (310, 185)], outline = "white", fill = "gray")
-        # Viereck in Mitte (Stop)
+
+        # oberes Dreieck (Öffnen, nur wenn nicht offen.)
+        if self.door_state not in ("opening", "open"):
+            draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")
+
+        # unteres Dreieck (Schließen, nur wenn nicht geschlossen.)
+        if self.door_state not in ("closing", "closed"):
+            draw.polygon([(250, 185), (280, 230), (310, 185)], outline = "white", fill = "gray")
+
+        # Viereck in Mitte (immer)
         draw.rectangle([(250, 105), (310, 165)], outline = "white", fill = "gray")
 
         draw.line((0, 50, 230, 50), fill = "gray", width = 3)
         draw.line((0, 100, 230, 100), fill = "gray", width = 3)
         draw.line((0, 150, 230, 150), fill = "gray", width = 3)
-        draw.line((115, 100, 115, 200), fill = "gray", width = 3)
+        draw.line((115, 100, 115, 240), fill = "gray", width = 3)
 
         # Info - Texte
         dt = datetime.now().strftime("%H:%M")
@@ -234,11 +248,19 @@ class ScreenController(LoggableClass):
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
         draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
         
-        draw.text((  120,  103), "LIcht:", font = self.FONT, fill = "yellow")
+        draw.text((  120,  103), "Lichtsensor:", font = self.FONT, fill = "yellow")
         draw.text((  130,  120), self.state["light_sensor"], font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,  153), "Tür:", font = self.FONT, fill = "yellow")
-        draw.text((  10,  170), self.state["door"], font = self.FONT_BIG, fill = "white", align = "right")
+
+        if self.door_state == "open":
+            txt = "offen"
+        elif self.door_state == "closed":
+            txt = "zu"
+        else:
+            txt = "unbekannt"
+
+        draw.text((  10,  170), self.door_state, font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((  120,  153), "Licht:", font = self.FONT, fill = "yellow")
         draw.text((  130,  170), "todo", font = self.FONT_BIG, fill = "white", align = "right")
@@ -253,14 +275,13 @@ class ScreenController(LoggableClass):
         elif self.light_state_indoor:
             draw.rectangle([(117, 201), (229, 240)], fill = "#A0A000")
 
-        # Trenner zwischen Innen- und Aussenlichtschalter
-        draw.line((114, 200, 114, 240), fill = "gray", width = 3)
-
-        #draw.bitmap(( 99, 204), self.BULB)
         draw.bitmap(( 40, 204), self.BULB) # außen
         draw.bitmap(( 157, 204), self.BULB) # innen
-
-        self.tft.display()
+        try:
+            self.tft.display()
+        except Exception:
+            self.logger.exception("Error while displaying tft!")
+            self.needsUpdate()
 
 def main():
     logger = shared.getLogger("ScreenController")

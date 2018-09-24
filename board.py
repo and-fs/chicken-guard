@@ -106,8 +106,8 @@ class Board(LoggableClass):
         # Magnetkontakt geschlossen wird, setzen wir einen Interrupt.
         # Da der Magnetkontakt mit LOW geschlossen wird, soll das Event auf
         # die fallende Flanke (Wechsel von HIGH nach LOW) reagieren
-        GPIO.add_event_detect(REED_UPPER, GPIO.FALLING, self.OnReedClosed)
-        GPIO.add_event_detect(REED_LOWER, GPIO.FALLING, self.OnReedClosed)
+        GPIO.add_event_detect(REED_UPPER, GPIO.FALLING, self.OnReedClosed, bouncetime = 25)
+        GPIO.add_event_detect(REED_LOWER, GPIO.FALLING, self.OnReedClosed, bouncetime = 25)
 
         self.sensor = Sensors()
     # -----------------------------------------------------------------------------------
@@ -337,7 +337,7 @@ class Board(LoggableClass):
                 result = 1 if self._waiter.wait(waittime) else 0
             self._waiter = None
             if result:
-                self.debug("Door closed has been signaled with waittime.")
+                self.debug("Door closed has been signaled within waittime.")
             else:
                 self.warn("Expected 'door closed' has not been signaled within %.4f seconds.", waittime)
         return result
