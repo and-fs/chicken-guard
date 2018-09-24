@@ -69,7 +69,7 @@ class ScreenController(LoggableClass):
             "door": state.get("door", "n/a"),
             "indoor_light": "an" if state.get("indoor_light", False) else "aus",
             "outdoor_light": "an" if state.get("outdoor_light", False)  else "aus",
-            "temperatur": str(state.get("temperature", "n/a")),
+            "temperature": str(state.get("temperature", "n/a")),
             "light_sensor": str(state.get("light_sensor", "n/a")),
         }
         self.state = ns
