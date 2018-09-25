@@ -94,7 +94,7 @@ TFT_SLEEP_TIMEOUT = 30
 # ------------------------------------------------------------------------
 #: Intervall, in dem die Sonnenaufgangs / Untergangszeiten berechnet werden
 #: (in Sekunden)
-SUNRISE_INTERVAL = 4 * 60 * 60
+SUNRISE_INTERVAL = 7000
 
 #: Prüfintervall für den Türstatus (Öffnen / Schließen)
 DOORCHECK_INTERVAL = 60
@@ -104,4 +104,15 @@ DAWN_OFFSET = 0
 
 #: Anzahl Minuten nach Sonnenuntergang, in der die Tür geschlossen wird.
 DUSK_OFFSET = 30 * 60
+
+#: Zeitpunkt des frühesten Öffnens der Tür
+EARLIEST_OPEN_TIMES = {
+    0: (5, 30), # Montag
+    1: (5, 30),
+    2: (5, 30),
+    3: (5, 30),
+    4: (5, 30),
+    5: (7, 30), # Samstag
+    6: (7, 30), # Sonntag
+}
 # ------------------------------------------------------------------------

@@ -40,6 +40,21 @@ class JobTimer(LoggableClass):
     def Start(self):
         self.info("Starting JobTimer.")
         self.thread.start()
+    
+    def GetSuntimes(self):
+        dawn, dusk = sunrise.getSunTimes()
+        dawn = dawn.replace(hour = hr, minute = minute)
+        return dawn, dusk
+
+    def GetAction(self, dawn, dusk):
+        dtnow = datetime.datetime.now()
+        if (dtnow < dawn):
+            # wir sind noch vor dem Sonnenaufgang
+            return "closed"
+        if (dtnow < dusk):
+            # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+            return "open"
+        return "closed"
 
     def __call__(self):
         self.info("JobTimer started.")
@@ -50,22 +65,24 @@ class JobTimer(LoggableClass):
             # aktuelle Sonnenaufgangs / Untergangszeiten holen
             if self.last_sunrise_check + SUNRISE_INTERVAL < now:
                 # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
-                self.info("Doing sunrise time check,")
-                dawn, dusk = sunrise.getSunTimes()
+                self.info("Doing sunrise time check.")
+                dawn, dusk = self.GetSuntimes()
                 self.last_sunrise_check = now
 
             # müssen wir die Tür öffnen / schließen?
             if self.last_door_check + DOORCHECK_INTERVAL < now:
                 self.last_door_check = now
+                action = self.GetAction()
                 dtnow = datetime.datetime.now()
-                if (dtnow > dawn) and (dtnow < dusk):
-                    if self.controller.IsDoorClosed():
-                        self.info("Opening open door, dawn has been reached.")
-                        self.controller.OpenDoor()
-                elif (dtnow > dusk) and (dtnow < dawn):
-                    if self.controller.IsDoorOpened():
-                        self.info("Closing open door, dusk has been reached.")
+                if action == "closed":
+                    if not self.controller.IsDoorClosed():
+                        self.info("Closing door, currently is after night.")
                         self.controller.CloseDoor()
+                else:
+                    # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+                    if not self.controller.IsDoorOpened():
+                        self.info("Opening door, currently is day.")
+                        self.controller.OpenDoor()
 
             time.sleep(DOORCHECK_INTERVAL)
         self.info("JobTimer stopped.")
@@ -141,6 +158,9 @@ class Controller(LoggableClass):
         self.job_timer.Terminate()
         self.job_timer.join()
         self.job_timer = None
+
+    def _CheckDoorState(self):
+
 # ------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """

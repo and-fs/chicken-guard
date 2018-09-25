@@ -14,10 +14,10 @@ class Sensors(LoggableClass):
     
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
-    SMBUS_CH_POTI = 0x41    # Potentiometer-Kanal
-    SMBUS_CH_AIN = 0x42     # Analog in (vermutlich)
-    SMBUS_CH_TEMP = 0x43    # Temperatur (vermutlich)
-    SMBUS_CH_AOUT = 0x44    # Analog out
+    SMBUS_CH_AIN  = 0x41    # AIN
+    SMBUS_CH_POTI = 0x42    # Potentiometer-Kanal
+    SMBUS_CH_TEMP = 0x43    # Temperatur
+    SMBUS_CH_AOUT = 0x44    # AOUT
 
     def __init__(self):
         LoggableClass.__init__(self, name = "Sensors")
