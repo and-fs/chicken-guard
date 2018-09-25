@@ -169,27 +169,27 @@ class ScreenController(LoggableClass):
 
     def OnDoorOpened(self, result = None):
         self.debug("Received door open callback: door is %s.", "open now" if result else "still closed")
-        self.door_state = "open"
+        self.door_state = DOOR_OPEN
         self.needsUpdate()
 
     def doorUp(self):
         self.info("Door up button pressed.")
-        self.door_state = "moving_up"
+        self.door_state = DOOR_MOVING
         AsyncFunc("OpenDoor", callback = self.OnDoorOpened)()
 
     def OnDoorClosed(self, result = None):
         self.debug("Received door close callback: door is %s.", "closed now" if result else "still open")
-        self.door_state = "closed"
+        self.door_state = DOOR_CLOSED
         self.needsUpdate()
 
     def doorDown(self):
         self.info("Door down button pressed.")
-        self.door_state = "moving_down"
+        self.door_state = DOOR_MOVING
         AsyncFunc("CloseDoor", callback = self.OnDoorClosed)()
 
     def OnDoorStopped(self, result = None):
         self.debug("Received door stop callback: %r", result)
-        self.door_state = "stopped"
+        self.door_state = DOOR_UNKNOWN
         self.needsUpdate()
 
     def doorStop(self):
@@ -221,13 +221,13 @@ class ScreenController(LoggableClass):
         draw.text((265,  5), "TÜR", font = self.FONT, fill = "white")
         draw.line((230, 0, 230, 240), fill = "gray", width = 3)
 
-        # oberes Dreieck (Öffnen, nur wenn nicht offen.)
-        if self.door_state not in ("opening", "open"):
-            draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")
-
-        # unteres Dreieck (Schließen, nur wenn nicht geschlossen.)
-        if self.door_state not in ("closing", "closed"):
-            draw.polygon([(250, 185), (280, 230), (310, 185)], outline = "white", fill = "gray")
+        if self.door_state != DOOR_MOVING:
+            if self.door_state != DOOR_OPEN:
+                # oberes Dreieck (Öffnen, nur wenn nicht offen.)
+                draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")
+            elif self.door_state != DOOR_OPEN:
+                # unteres Dreieck (Schließen, nur wenn nicht geschlossen.)
+                draw.polygon([(250, 185), (280, 230), (310, 185)], outline = "white", fill = "gray")
 
         # Viereck in Mitte (immer)
         draw.rectangle([(250, 105), (310, 165)], outline = "white", fill = "gray")
@@ -253,14 +253,14 @@ class ScreenController(LoggableClass):
 
         draw.text((   5,  153), "Tür:", font = self.FONT, fill = "yellow")
 
-        if self.door_state == "open":
+        if self.door_state == DOOR_OPEN:
             txt = "offen"
-        elif self.door_state == "closed":
+        elif self.door_state == DOOR_CLOSED:
             txt = "zu"
         else:
-            txt = "unbekannt"
+            txt = "???"
 
-        draw.text((  10,  170), self.door_state, font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,  170), txt, font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((  120,  153), "Licht:", font = self.FONT, fill = "yellow")
         draw.text((  130,  170), "todo", font = self.FONT_BIG, fill = "white", align = "right")

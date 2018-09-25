@@ -116,3 +116,7 @@ EARLIEST_OPEN_TIMES = {
     6: (7, 30), # Sonntag
 }
 # ------------------------------------------------------------------------
+DOOR_OPEN = "open"
+DOOR_CLOSED = "closed"
+DOOR_MOVING = "moving"
+DOOR_UNKNOWN = "n/a"

@@ -60,103 +60,32 @@ def getSunTimes(when = None):
     diff = localTimeDiff(decl, LATITUDE_IN_RAD) - sunTimeDiff(day_of_year)
     diff = datetime.timedelta(hours = diff)
     midday = when.replace(hour = 12 + (1 if is_dst else 0), minute = 0, second = 0, microsecond = 0)
-    sunset = (midday - diff) + datetime.timedelta(seconds = DAWN_OFFSET)
-    sunrise = (midday + diff) + datetime.timedelta(seconds = DUSK_OFFSET)
+    sunset = (midday - diff) 
+    sunrise = (midday + diff)
     return sunset, sunrise
 # ------------------------------------------------------------------------
-class SunTimesFile(LoggableClass):
-
-    def __init__(self, fpath = None):
-        LoggableClass.__init__(self, name = "sunrise")
-        #: Datetime-Format für die Tagesangabe
-        self.day_format = '%d.%m.%Y'
-        #: Datetime-Format für die Zeiangabe
-        self.time_format = '%H:%M'
-        #: Separator für die Datetimefelder pro Zeile
-        self.field_sep = '\t'
-        #: Template für eine Zeile in der Datendatei.
-        self.line_tpl = "{0:%s}%s{1:%s}%s{2:%s}%s" % (
-            self.day_format, self.field_sep,
-            self.time_format, self.field_sep,
-            self.time_format, os.linesep
-        )
-        #: Datendatei
-        self.datafile = shared.resource_path.joinpath(SUNSETFILE) if (fpath is None) else fpath
-
-    def write(self, days = 10):
-        """
-        Schreibt die Sonnenaufgangs- / -untergangszeiten der nächsten 'days' Tage
-        in die konfigurierte Datei (config.SUNSETFILE) im Ressourcenverzeichnis
-        (shared.resource_path).
-
-        Falls die bestehende Datei jünger als die aktuelle Zeit ist (RPi hat nach
-        einem Hochfahren noch keine aktuelle Zeit erhalten), wird die Aktion
-        abgebrochen.
-        """
-        now = datetime.datetime.now()
-
-        self.info("Calculating times into data file %s.", self.datafile)
-
-        # als erstes schauen wir nach, wann das letzte Mal eine
-        # Aktualisierung der Datei stattgefunden hat.
-        if self.datafile.exists():
-            self.debug("Datafile already exists, checking time.")
-            # falls die letzte Aktualisierung der Datei neuer(!)
-            # ist als die aktuelle Zeit, wurde der PI neu gestartet
-            # und hat (noch) keine aktuelle Zeit.
-            # in diesem Fall brechen wir ab
-            filetime = datetime.datetime.fromtimestamp(self.datafile.stat().st_mtime)
-            if now < filetime:
-                self.warn("Sunrise data file time (%s) is newer then current time (%s), aborting this run.", filetime.ctime(), now.ctime())
-                return -1
-        else:
-            self.debug("Datafile doesn't exist, creating a new one.")
-
-        self.info("Calculating sunrise data.")
-
-        current = now.replace(hour = 12)
-        daydiff = datetime.timedelta(days = 1)
-
-        with self.datafile.open("w") as f:
-            for _ in range(days):
-                (sunrise, sunset) = getSunTimes(current)
-                f.write(self.line_tpl.format(current, sunrise, sunset))
-                current += daydiff
-
-        self.info("Finished.")
-
-    def read(self):
-        """
-        Liest die aktuell geschriebenen Zeiten.
-        """
-        # als erstes schauen wir nach, wann das letzte Mal eine
-        # Aktualisierung der Datei stattgefunden hat.
-        if not self.datafile.exists():
-            self.info("Cannot read times from data file '%s', currently not existing.", self.datafile)
-            return []
-
-        self.info("Reading times from data file %s.", self.datafile)
-        result = []
-        with self.datafile.open('r') as f:
-            for linenum, line in enumerate(f):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    current, sunrise, sunset = line.split(self.field_sep)
-                    current = datetime.datetime.strptime(current, self.day_format)
-                    sunrise = datetime.datetime.strptime(sunrise, self.time_format)
-                    sunset = datetime.datetime.strptime(sunset, self.time_format)
-                except ValueError:
-                    self.exception('Error in datafile at line %d: %r!', linenum, line)
-                    continue
-                result.append((current, sunrise, sunset))
-        self.info("Finished reading, read %d times.", len(result))
-        return result
+def GetSuntimes(current_datetime):
+    """
+    Liefert die Schaltzeiten für die Tür an dem Tag des Datums
+    von current_datatime.
+    """
+    dawn, dusk = getSunTimes(current_datetime)
+    hour, minute = EARLIEST_OPEN_TIMES.get(current_datetime.weekday(), (5, 30))
+    dawn = dawn.replace(hour = hour, minute = minute)
+    dawn += datetime.timedelta(seconds = DAWN_OFFSET)
+    dusk += datetime.timedelta(seconds = DUSK_OFFSET)
+    return dawn, dusk
+# ------------------------------------------------------------------------
+def GetDoorAction(current_datetime, dawn, dusk):
+    if (current_datetime < dawn):
+        # wir sind noch vor dem Sonnenaufgang
+        return DOOR_CLOSED
+    if (current_datetime < dusk):
+        # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+        return DOOR_OPEN
+    return DOOR_CLOSED
 # ------------------------------------------------------------------------
 def test():
     sunset, sunrise = getSunTimes()
     print ("Am {sunset:%d.%m.%Y} geht die Sonne {sunset:%H:%M} Uhr auf und {sunrise:%H:%M} unter.".format(sunset = sunset, sunrise = sunrise))
 # ------------------------------------------------------------------------
-if __name__ == "__main__":
-    print(SunTimesFile().read())

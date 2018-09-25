@@ -135,8 +135,8 @@ class Board(LoggableClass):
         #: In diesem Fall muss ein eigenes Script her, welches beim Startup
         #: als root ausgeführt wird und den Button überwacht
         self.info("Shutdown button has been released, shutting system down.")
-        import os
-        os.system("sudo shutdown -h now")
+        #import os
+        #os.system("sudo shutdown -h now")
     # -----------------------------------------------------------------------------------
     def SwitchRelais(self, channel: int, state: int):
         """
@@ -372,13 +372,13 @@ class Board(LoggableClass):
         }
 
         if self.IsDoorMoving():
-            result["door"] = "moving_up" if (self.door_state & self.DOOR_MOVING_UP) else "moving_down"
+            result["door"] = DOOR_MOVING
         elif self.IsDoorClosed():
-            result["door"] = "closed"
+            result["door"] = DOOR_CLOSED
         elif self.IsDoorOpen():
-            result["door"] = "open"
+            result["door"] = DOOR_OPEN
         else:
-            result["door"] = "unknown"
+            result["door"] = DOOR_UNKNOWN
 
         return result
 

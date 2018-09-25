@@ -40,41 +40,26 @@ class JobTimer(LoggableClass):
     def Start(self):
         self.info("Starting JobTimer.")
         self.thread.start()
-    
-    def GetSuntimes(self):
-        dawn, dusk = sunrise.getSunTimes()
-        dawn = dawn.replace(hour = hr, minute = minute)
-        return dawn, dusk
-
-    def GetAction(self, dawn, dusk):
-        dtnow = datetime.datetime.now()
-        if (dtnow < dawn):
-            # wir sind noch vor dem Sonnenaufgang
-            return "closed"
-        if (dtnow < dusk):
-            # wir sind nach Sonnenauf- aber vor Sonnenuntergang
-            return "open"
-        return "closed"
 
     def __call__(self):
         self.info("JobTimer started.")
-        dawn, dusk = sunrise.getSunTimes()
+        dawn, dusk = sunrise.GetSuntimes(datetime.datetime.now())
         while not self.terminate:
             now = time.time()
+            dtnow = datetime.datetime.now()
 
             # aktuelle Sonnenaufgangs / Untergangszeiten holen
             if self.last_sunrise_check + SUNRISE_INTERVAL < now:
                 # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
                 self.info("Doing sunrise time check.")
-                dawn, dusk = self.GetSuntimes()
+                dawn, dusk = sunrise.GetSuntimes(dtnow)
                 self.last_sunrise_check = now
 
             # müssen wir die Tür öffnen / schließen?
             if self.last_door_check + DOORCHECK_INTERVAL < now:
                 self.last_door_check = now
-                action = self.GetAction()
-                dtnow = datetime.datetime.now()
-                if action == "closed":
+                action = sunrise.GetDoorAction(dtnow, dawn, dusk)
+                if action == DOOR_CLOSED:
                     if not self.controller.IsDoorClosed():
                         self.info("Closing door, currently is after night.")
                         self.controller.CloseDoor()
