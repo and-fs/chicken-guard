@@ -130,7 +130,7 @@ class Board(LoggableClass):
         """
         if condition:
             return True
-        self.error(message, args)
+        self.error(message, *args)
         if RAISE_ERRORS:
             raise errorclass(message % args)
         return False
@@ -151,7 +151,7 @@ class Board(LoggableClass):
             channel in RELAIS_PINS,
             "Channel %d is not a relais pin!",
             channel,
-            ValueError
+            errorclass = ValueError
         ):
             return
 
@@ -159,10 +159,11 @@ class Board(LoggableClass):
             state in (RELAIS_ON, RELAIS_OFF),
             "State %d is not valid for relais!",
             state,
-            ValueError
+            errorclass = ValueError
         ):
             return
 
+        self.debug("Output %d to pin %d.", state, channel)
         GPIO.output(channel, state)
     # -----------------------------------------------------------------------------------
     # --- LICHT -------------------------------------------------------------------------
@@ -173,7 +174,7 @@ class Board(LoggableClass):
         """
         self.light_state_outdoor = swon
         self.info("Switching outdoor light %s", "on" if swon else "off")
-        self.SwitchRelais(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        GPIO.output(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
 
     def SwitchIndoorLight(self, swon:bool):
         """
@@ -181,7 +182,7 @@ class Board(LoggableClass):
         """
         self.light_state_indoor = swon
         self.info("Switching indoor light %s", "on" if swon else "off")
-        self.SwitchRelais(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        GPIO.output(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
 
     def IsIndoorLightOn(self):
         return self.light_state_indoor

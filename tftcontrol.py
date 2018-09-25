@@ -40,8 +40,8 @@ class ScreenController(LoggableClass):
         self.slots = { (250,  40, 310,  85): self.doorUp,
                        (250, 105, 310, 165): self.doorStop,
                        (250, 185, 310, 230): self.doorDown,
-                       (  0, 200, 115, 240): self.switchOutdoorLight,
-                       (116, 200, 230, 240): self.switchIndoorLight,
+                       (  0, 200, 115, 240): self.switchIndoorLight,
+                       (116, 200, 230, 240): self.switchOutdoorLight,
                      }
 
         GPIO.setmode(GPIO.BCM)
