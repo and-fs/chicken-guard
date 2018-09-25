@@ -2,6 +2,7 @@
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------
 import threading
+import os
 from shared import LoggableClass
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
@@ -93,8 +94,13 @@ class Board(LoggableClass):
         self.state_change_handler = None
 
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = RELAIS_OFF)
-        GPIO.setup(INPUT_PINS, GPIO.IN)
+        self.logger.debug("Settings pins %s to OUT.", OUTPUT_PINS)
+        for pin in OUTPUT_PINS:
+            GPIO.setup(pin, GPIO.OUT, initial = RELAIS_OFF)
+        self.logger.debug("Settings pins %s to IN.", INPUT_PINS)
+        for pin in INPUT_PINS:
+            GPIO.setup(pin, GPIO.IN)
+
         GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed, bouncetime = 200)
 
         self.CheckForError(
@@ -135,8 +141,7 @@ class Board(LoggableClass):
         #: In diesem Fall muss ein eigenes Script her, welches beim Startup
         #: als root ausgeführt wird und den Button überwacht
         self.info("Shutdown button has been released, shutting system down.")
-        #import os
-        #os.system("sudo shutdown -h now")
+        os.system("sudo shutdown -h now")
     # -----------------------------------------------------------------------------------
     def SwitchRelais(self, channel: int, state: int):
         """

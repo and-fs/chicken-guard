@@ -225,7 +225,7 @@ class ScreenController(LoggableClass):
             if self.door_state != DOOR_OPEN:
                 # oberes Dreieck (Öffnen, nur wenn nicht offen.)
                 draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")
-            elif self.door_state != DOOR_OPEN:
+            elif self.door_state != DOOR_CLOSED:
                 # unteres Dreieck (Schließen, nur wenn nicht geschlossen.)
                 draw.polygon([(250, 185), (280, 230), (310, 185)], outline = "white", fill = "gray")
 
