@@ -143,6 +143,9 @@ class Controller(LoggableClass):
         self.job_timer.Terminate()
         self.job_timer.join()
         self.job_timer = None
+
+    def _CheckDoorState(self):
+
 # ------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """
