@@ -32,8 +32,8 @@ PIN_REED_2 = 11              #: PIN für den Magnetschalter 2 (Pullup, HIGH = of
 
 PIN_BUTTON_1 = 29            #: PIN für den Button 1 (Pullup, HIGH = offen / nicht gedrückt)
 # ------------------------------------------------------------------------
-RELAIS_ON = 1                #: Output für Relais geschlossen (grün)
-RELAIS_OFF = 0               #: Output für Relais offen (rot)
+RELAIS_ON = 0                #: Output für Relais geschlossen (grün)
+RELAIS_OFF = 1               #: Output für Relais offen (rot)
 # ------------------------------------------------------------------------
 REED_CLOSED = 0              #: Input für Magnetkontakt geschlossen (Kontakt)
 REED_OPENED = 1              #: Input für Magnetkontakt offen (kein Kontakt)

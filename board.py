@@ -93,9 +93,9 @@ class Board(LoggableClass):
         self.state_change_handler = None
 
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = GPIO.HIGH)
+        GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = RELAIS_OFF)
         GPIO.setup(INPUT_PINS, GPIO.IN)
-        GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed)
+        GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed, bouncetime = 200)
 
         self.CheckForError(
             not (self.IsDoorOpen() and self.IsDoorClosed()),
@@ -106,8 +106,8 @@ class Board(LoggableClass):
         # Magnetkontakt geschlossen wird, setzen wir einen Interrupt.
         # Da der Magnetkontakt mit LOW geschlossen wird, soll das Event auf
         # die fallende Flanke (Wechsel von HIGH nach LOW) reagieren
-        GPIO.add_event_detect(REED_UPPER, GPIO.FALLING, self.OnReedClosed, bouncetime = 25)
-        GPIO.add_event_detect(REED_LOWER, GPIO.FALLING, self.OnReedClosed, bouncetime = 25)
+        GPIO.add_event_detect(REED_UPPER, GPIO.FALLING, self.OnReedClosed, bouncetime = 250)
+        GPIO.add_event_detect(REED_LOWER, GPIO.FALLING, self.OnReedClosed, bouncetime = 250)
 
         self.sensor = Sensors()
     # -----------------------------------------------------------------------------------

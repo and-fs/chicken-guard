@@ -41,6 +41,10 @@ class JobTimer(LoggableClass):
         self.info("Starting JobTimer.")
         self.thread.start()
 
+    def Join(self):
+        return
+        self.thread.join() # todo: hier besser mit einer condition arbeiten!
+
     def __call__(self):
         self.info("JobTimer started.")
         dawn, dusk = sunrise.GetSuntimes(datetime.datetime.now())
@@ -141,10 +145,8 @@ class Controller(LoggableClass):
 
     def CleanUp(self):
         self.job_timer.Terminate()
-        self.job_timer.join()
+        self.job_timer.Join()
         self.job_timer = None
-
-    def _CheckDoorState(self):
 
 # ------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):

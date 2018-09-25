@@ -51,7 +51,7 @@ class ScreenController(LoggableClass):
         self.tft.initLCD(self.DC, self.RST, self.LED, switch_on = self.tft_state)
         self.tft.initTOUCH(self.TOUCH_IRQ)
         # TOUCH_IRQ = Pen!
-        GPIO.add_event_detect(self.TOUCH_IRQ, GPIO.BOTH, callback = self.onTouchEvent, bouncetime = 20)
+        GPIO.add_event_detect(self.TOUCH_IRQ, GPIO.BOTH, callback = self.onTouchEvent, bouncetime = 250)
 
         InstallStateChangeHandler(self, self.onStateChanged, self.shouldShutdown)
 

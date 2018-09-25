@@ -74,7 +74,7 @@ def _StateChangeHandler(logger, handler, terminate_condition):
         try:
             changed, state = proxy.WaitForStateChange(waittime)
         except ConnectionRefusedError:
-            logger.exception("Proxy not reachable, trying again later.")
+            logger.warn("Proxy not reachable, trying again later.")
         except Exception:
             logger.exception("Error while calling WaitForStateChange.")
         else:
