@@ -118,6 +118,7 @@ def test():
     test_consistency(datetime(2018, 8, 25, 11, 16))
     test_times()
     test_dooraction()
+    return True
 # ---------------------------------------------------------------------------------------
 if __name__ == '__main__':
     test()

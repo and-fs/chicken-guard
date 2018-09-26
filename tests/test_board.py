@@ -87,7 +87,6 @@ def test():
     check(b.IsOutdoorLightOn(), "Outdoor light should be on.")
     b.SwitchOutdoorLight(False)
     check(not b.IsOutdoorLightOn(), "Outdoor light should be off.")
-    print ("Finished.")
     return True
 # ---------------------------------------------------------------------------------------------
 if __name__ == "__main__":
