@@ -43,25 +43,28 @@ def localTimeDiff(declination, latitude_in_rad):
                 / (math.cos(latitude_in_rad)*math.cos(declination))
             ) / math.pi)         
 # ------------------------------------------------------------------------
-def getSunTimes(when = None):
+def CalculateSunTimes(when = None):
     """
     Liefert ein Tupel aus Sonnenaufgangs- und -untergangszeit
     für den angegebenen Tag `when`.
-    Sommer-/Winterzeit wird dabei berücksichtigt.
+    Sommer-/Winterzeit wird dabei berücksichtigt, aber für den fragenden Tag
+    gilt immer die Zeitzone, in der Sonnenaufgang- und -untergang stattfinden.
     """
     if when is None:
         when = datetime.datetime.now()
+    when = when.replace(hour = 12, minute = 0, second = 0, microsecond = 0)
     timetuple = when.timetuple()
     stamp = time.mktime(timetuple)
     tt = time.localtime(stamp)
-    is_dst = tt.tm_isdst > 0   
+    is_dst = tt.tm_isdst > 0
     day_of_year = timetuple.tm_yday
     decl = sunDeclination(day_of_year)
     diff = localTimeDiff(decl, LATITUDE_IN_RAD) - sunTimeDiff(day_of_year)
     diff = datetime.timedelta(hours = diff)
-    midday = when.replace(hour = 12 + (1 if is_dst else 0), minute = 0, second = 0, microsecond = 0)
-    sunset = (midday - diff) 
-    sunrise = (midday + diff)
+    if is_dst:
+        when += datetime.timedelta(hours = 1)
+    sunset = (when - diff) 
+    sunrise = (when + diff)
     return sunset, sunrise
 # ------------------------------------------------------------------------
 def GetSuntimes(current_datetime):
@@ -69,23 +72,27 @@ def GetSuntimes(current_datetime):
     Liefert die Schaltzeiten für die Tür an dem Tag des Datums
     von current_datatime.
     """
-    dawn, dusk = getSunTimes(current_datetime)
+    dawn, dusk = CalculateSunTimes(current_datetime)
     hour, minute = EARLIEST_OPEN_TIMES.get(current_datetime.weekday(), (5, 30))
-    dawn = dawn.replace(hour = hour, minute = minute)
+    eot = datetime.time(hour = hour, minute = minute)
+    if eot > dawn.time():
+        dawn = dawn.replace(hour = hour, minute = minute)
     dawn += datetime.timedelta(seconds = DAWN_OFFSET)
     dusk += datetime.timedelta(seconds = DUSK_OFFSET)
     return dawn, dusk
 # ------------------------------------------------------------------------
-def GetDoorAction(current_datetime, dawn, dusk):
-    if (current_datetime < dawn):
-        # wir sind noch vor dem Sonnenaufgang
+def GetDoorAction(current_datetime, open_time, close_time):
+    """
+    Liefert den erwarteten Zustand der Zür zum Zeitpunkt `current_datetime`
+    wenn die Tür zwischen `open_time` und `close_time` geöffnet sein soll,
+    sonst geschlossen.
+    """
+    if (current_datetime < open_time):
+        # wir sind noch vor der Öffnungszeit
         return DOOR_CLOSED
-    if (current_datetime < dusk):
-        # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+    if (current_datetime < close_time):
+        # wir sind nach Öffnungs- aber vor Schließungszeit
         return DOOR_OPEN
+    # es ist nach Schließungszeit
     return DOOR_CLOSED
-# ------------------------------------------------------------------------
-def test():
-    sunset, sunrise = getSunTimes()
-    print ("Am {sunset:%d.%m.%Y} geht die Sonne {sunset:%H:%M} Uhr auf und {sunrise:%H:%M} unter.".format(sunset = sunset, sunrise = sunrise))
 # ------------------------------------------------------------------------
