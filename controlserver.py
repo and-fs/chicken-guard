@@ -153,7 +153,20 @@ class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """
     SimpleXMLRPC-Server, jeder Request wird in einem eigenen Thread ausgeführt.
     """
-    pass
+    def __init__(self, *args, **kwargs):
+        self.logger = shared.getLogger("xmlrpc-server")
+        super().__init__(*args, **kwargs)
+
+    def _dispatch(self, method, params):
+        """
+        Überlädt die Basisklassenmethode um etwaige Exceptions
+        im logger auszugeben.
+        """
+        try:
+            return super()._dispatch(method, params)
+        except Exception:
+            self.logger.exception("Error in %s%r.", method, params)
+            raise
 # ------------------------------------------------------------------------
 def main():
     """
