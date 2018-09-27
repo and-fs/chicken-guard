@@ -95,11 +95,9 @@ class Board(LoggableClass):
 
         GPIO.setmode(GPIO.BOARD)
         self.logger.debug("Settings pins %s to OUT.", OUTPUT_PINS)
-        for pin in OUTPUT_PINS:
-            GPIO.setup(pin, GPIO.OUT, initial = RELAIS_OFF)
+        GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = RELAIS_OFF)
         self.logger.debug("Settings pins %s to IN.", INPUT_PINS)
-        for pin in INPUT_PINS:
-            GPIO.setup(pin, GPIO.IN)
+        GPIO.setup(INPUT_PINS, GPIO.IN)
 
         GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed, bouncetime = 200)
 
@@ -173,16 +171,16 @@ class Board(LoggableClass):
         Schaltet das Aussenlicht ein, wenn 'swon' True ist. (sonst aus)
         """
         self.light_state_outdoor = swon
-        self.info("Switching outdoor light %s", "on" if swon else "off")
-        GPIO.output(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        self.SwitchRelais(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        self.info("Switched outdoor light %s", "on" if swon else "off")
 
     def SwitchIndoorLight(self, swon:bool):
         """
         Schaltet die Innenbeleuchtung ein, wenn 'swon' True ist. (sonst aus)
         """
         self.light_state_indoor = swon
-        self.info("Switching indoor light %s", "on" if swon else "off")
-        GPIO.output(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        self.SwitchRelais(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        self.info("Switched indoor light %s", "on" if swon else "off")
 
     def IsIndoorLightOn(self):
         return self.light_state_indoor

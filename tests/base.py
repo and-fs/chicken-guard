@@ -10,6 +10,7 @@ import threading
 # ---------------------------------------------------------------------------------------
 from config import *
 CATCH_TEST_ERRORS = True
+results = {'fail': 0, 'ok': 0, 'total': 0}
 # ---------------------------------------------------------------------------------------
 import shared
 shared.configureLogging("test")
@@ -32,8 +33,9 @@ def testfunction(fu):
     der dekorierten Funktion immer `False`.
     """
     def call(*args, **kwargs):
+        res_before = results.copy()
         print ("-" * 80)
-        print ("Starting test.")
+        print ("Starting test (%s)" % (fu.__code__.co_filename,))
         try:
             result = fu(*args, **kwargs)
         except TestError as e:
@@ -41,8 +43,13 @@ def testfunction(fu):
             print ("Test failed:", e)
             if not CATCH_TEST_ERRORS:
                 raise
+        for k in ('total', 'ok', 'fail'):
+            res_before[k] = results[k] - res_before[k]
+        msg = "{ok} of {total} succeeded, {fail} failed.".format(**res_before)
+        if result:
+            print ("SUCCEEDED:", msg)
         else:
-            print ("Test succeeded.")
+            print ("FAILED:", msg)
         return result
     return call
 # ---------------------------------------------------------------------------------------
@@ -57,9 +64,12 @@ def check(condition, message, *args):
         message: Nachricht zum Testschritt (was wurde erwartet).
             Wird mit `args` substituiert, falls angegeben.
     """
+    results['total'] += 1
     if condition:
+        results['ok'] += 1
         print ('[OK] ' + (message % args))
     else:
+        results['fail'] += 1
         print ('[FAIL] ' + (message % args))
         raise TestError(message, *args)
 # ---------------------------------------------------------------------------------------
