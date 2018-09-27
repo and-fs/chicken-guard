@@ -29,26 +29,37 @@ class JobTimer(LoggableClass):
         LoggableClass.__init__(self, name = 'JobTimer')
         self.controller = controller
         self.terminate = False
+        self.terminate_condition = threading.Condition()
         self.thread = threading.Thread(target = self, name = 'JobTimer')
         self.last_sunrise_check = 0
         self.last_door_check = 0
 
     def Terminate(self):
         self.info("Termination JobTimer.")
-        self.terminate = True
+        with self.terminate_condition:
+            self.terminate = True
+            self.terminate_condition.notify_all()
 
     def Start(self):
         self.info("Starting JobTimer.")
         self.thread.start()
 
     def Join(self):
-        return
-        self.thread.join() # todo: hier besser mit einer condition arbeiten!
+        with self.terminate_condition:
+            self.terminate_condition.wait()
+
+    def ShouldTerminate(self):
+        with self.terminate_condition:
+            return self.terminate
+
+    def WakeUp(self):
+        with self.terminate_condition:
+            self.terminate_condition.notify_all()
 
     def __call__(self):
         self.info("JobTimer started.")
         dawn, dusk = sunrise.GetSuntimes(datetime.datetime.now())
-        while not self.terminate:
+        while not self.ShouldTerminate():
             now = time.time()
             dtnow = datetime.datetime.now()
 
@@ -57,23 +68,45 @@ class JobTimer(LoggableClass):
                 # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
                 self.info("Doing sunrise time check.")
                 dawn, dusk = sunrise.GetSuntimes(dtnow)
+                # jetzt noch die nächsten beiden Aktionen ermitteln (für
+                # die Anzeige im Display)
+                if dtnow < dawn:
+                    # damit haben wir zwei, das reicht
+                    next_steps = [(dawn, DOOR_OPEN),
+                                  (dusk, DOOR_CLOSED)]
+                else:
+                    # jetzt müssen wir uns noch den nächsten Tag holen
+                    ndawn, ndusk = sunrise.GetSuntimes(dtnow + datetime.timedelta(days = 1))
+                    if dtnow < dusk:
+                        next_steps = [(dusk, DOOR_CLOSED),
+                                      (dawn, DOOR_OPEN)]
+                    else:
+                        next_steps = [(ndawn, DOOR_OPEN),
+                                      (ndusk, DOOR_CLOSED)]
+                self.controller.SetNextActions(next_steps)
                 self.last_sunrise_check = now
 
-            # müssen wir die Tür öffnen / schließen?
-            if self.last_door_check + DOORCHECK_INTERVAL < now:
-                self.last_door_check = now
-                action = sunrise.GetDoorAction(dtnow, dawn, dusk)
-                if action == DOOR_CLOSED:
-                    if not self.controller.IsDoorClosed():
-                        self.info("Closing door, currently is after night.")
-                        self.controller.CloseDoor()
-                else:
-                    # wir sind nach Sonnenauf- aber vor Sonnenuntergang
-                    if not self.controller.IsDoorOpened():
-                        self.info("Opening door, currently is day.")
-                        self.controller.OpenDoor()
+            if self.controller.automatic:
+                # müssen wir die Tür öffnen / schließen?
+                if self.last_door_check + DOORCHECK_INTERVAL < now:
+                    self.logger.debug("Doing door automatic check.")                
+                    self.last_door_check = now
+                    action = sunrise.GetDoorAction(dtnow, dawn, dusk)
+                    if action == DOOR_CLOSED:
+                        if not self.controller.IsDoorClosed():
+                            self.info("Closing door, currently is after night.")
+                            self.controller.CloseDoor()
+                    else:
+                        # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+                        if not self.controller.IsDoorOpened():
+                            self.info("Opening door, currently is day.")
+                            self.controller.OpenDoor()
+            else:
+                self.logger.debug("Skipped door check, automatic is off.")
 
-            time.sleep(DOORCHECK_INTERVAL)
+            with self.terminate_condition:
+                self.terminate_condition.wait(DOORCHECK_INTERVAL)
+
         self.info("JobTimer stopped.")
 # ------------------------------------------------------------------------
 class Controller(LoggableClass):
@@ -83,11 +116,33 @@ class Controller(LoggableClass):
     def __init__(self):
         LoggableClass.__init__(self, name = "Controller")
         self.board = board.Board()
+
+        #: Liste der nächsten Schritte, jeder besteht aus einem Tupel
+        #: mit Zeitstempel und der Aktion, die dann vorgenommen wird
+        #: (DOOR_OPEN oder DOOR_CLOSED)
+        self.next_actions = []
+
+        #: Gibt an, ob die Tür über die Automatic gesteuert wird
+        #: oder manuell. Wird vom job_timer verwendet.
+        self.automatic = True
+
         self._state_lock = threading.Lock()
         self._state = (False, self.board.GetState())
         self._state_cond = threading.Condition(self._state_lock)
         self.board.SetStateChangeHandler(self._BoardStateChanged)
         self.job_timer = JobTimer(self)
+
+    def SetNextActions(self, actions):
+        self.logger.debug("Received next actions list: %s", actions)
+        if actions == self.next_actions:
+            # wenn sich nichts geändert hat, machen wir auch nichts
+            return
+        # ansonsten merken und den State-Setter rufen
+        # (der setzt dann den Status entsprechend)
+        self.next_actions == actions
+        with self._state_lock:
+            state = self._state[1].copy()
+        self._BoardStateChanged(state)
 
     def SwitchIndoorLight(self, swon: bool) -> bool:
         self.debug("Received indoor light switch to %r request.", swon)
@@ -125,12 +180,26 @@ class Controller(LoggableClass):
     def IsDoorClosed(self) -> bool:
         return self.board.IsDoorClosed()
 
+    def SwitchDoorAutomatic(self, auto_on:bool):
+        self.debug("Switching door automatic %s.", "on" if auto_on else "off")
+        self.automatic = auto_on
+        if auto_on:
+            # wenn die Automatic angeschalten wird, muss
+            # der Job timer wieder ran.
+            self.job_timer.WakeUp()
+        return self.automatic
+
     def GetBoardState(self) -> dict:
         self.debug("Received state request.")
-        return self.board.GetState()
+        state = self.board.GetState()
+        state['next_actions'] = self.next_actions
+        state['automatic'] = self.automatic
+        return state
 
     def _BoardStateChanged(self, state):
         self.info("Board state changed: %s", state)
+        state['next_actions'] = self.next_actions
+        state['automatic'] = self.automatic
         with self._state_lock:
             self._state = (True, state)
             self._state_cond.notify_all()
@@ -142,6 +211,13 @@ class Controller(LoggableClass):
             if notified:
                 self._state = (False, state)
         return (notified, state)
+
+    def GetNextAction(self):
+        dtnow = datetime.datetime.now()
+        for dt, action in self.next_actions:
+            if dtnow < dt:
+                return (dt, action)
+        return (None, None)
 
     def CleanUp(self):
         self.job_timer.Terminate()

@@ -15,6 +15,7 @@ from gpio import GPIO
 from shared import LoggableClass
 from config import * # pylint: disable=W0614
 from tools import AsyncFunc, CallError, InstallStateChangeHandler
+from datetime import datetime
 # ------------------------------------------------------------------------
 class ScreenController(LoggableClass):
     DC = 24
@@ -42,7 +43,9 @@ class ScreenController(LoggableClass):
                        (250, 185, 310, 230): self.doorDown,
                        (  0, 200, 115, 240): self.switchIndoorLight,
                        (116, 200, 230, 240): self.switchOutdoorLight,
+                       (  0,  50, 230, 100): self.switchDoorAutomatic,
                      }
+
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
@@ -65,18 +68,33 @@ class ScreenController(LoggableClass):
             self.doCleanup()
         self.info("Finished.")
 
+    def GetNextActionText(self, state):
+        if state.get("automatic", "True"):
+            now = datetime.now()
+            for dt, action in state.get("next_actions", []):
+                if now < dt:
+                    return "{0} um {1:%H:%M}".format(
+                        "Öffnen" if action == DOOR_OPEN else "Schließen",
+                        dt
+                    )
+            return "FEHLER"
+        return "Manuell"
+
     def setState(self, state):
         # moving_up, closed, open, moving_down
         self.door_state = state.get("door", "n/a")
         self.light_state_indoor = state.get("indoor_light", False)
         self.light_state_outdoor = state.get("outdoor_light", False)
+
         ns = {
             "door": self.door_state,
             "indoor_light": "an" if self.light_state_indoor else "aus",
             "outdoor_light": "an" if self.light_state_outdoor  else "aus",
             "temperature": str(state.get("temperature", "n/a")),
             "light_sensor": str(state.get("light_sensor", "n/a")),
+            "next_action": self.GetNextActionText(state),
         }
+
         self.state = ns
 
     def onStateChanged(self, state):
@@ -157,7 +175,10 @@ class ScreenController(LoggableClass):
                     continue
                 if y < ptop or y > pbottom:
                     continue
-                handler()
+                try:
+                    handler()
+                except Exception:
+                    self.logger.exception("Error in touch handler.")
                 break
         else:
             print ("Touch up.")
@@ -214,6 +235,15 @@ class ScreenController(LoggableClass):
         self.info("Switching outdoor light %s", "off" if self.light_state_outdoor else "on")
         AsyncFunc("SwitchOutdoorLight", callback = self.OnOutdoorLightSwitched)(not self.light_state_outdoor)
 
+    def OnDoorAutomaticSwitched(self, result):
+        self.debug("Received door automatic switch callback: %r", result)
+        self.state["automatic"] = result
+        self.needsUpdate()
+
+    def switchDoorAutomatic(self):
+        self.info("Switching door automatic %s", "off" if self.state["automatic"] else "on")
+        AsyncFunc("SwitchDoorAutomatic", callback = self.OnDoorAutomaticSwitched)(not self.state["automatic"])
+
     def drawScreen(self):
         draw = self.tft.draw()
         draw.rectangle([(0, 0), (320, 240)], fill = "black")
@@ -232,6 +262,13 @@ class ScreenController(LoggableClass):
         # Viereck in Mitte (immer)
         draw.rectangle([(250, 105), (310, 165)], outline = "white", fill = "gray")
 
+        # Untermalung "Demnächst" (Automatic-Button)
+        if self.state.get("automatic", True):
+            draw.rectangle([(0, 50), (230, 100)], fill = "#008000")
+        else:
+            draw.rectangle([(0, 50), (230, 100)], fill = "#800000")
+
+        # Trennlinien
         draw.line((0, 50, 230, 50), fill = "gray", width = 3)
         draw.line((0, 100, 230, 100), fill = "gray", width = 3)
         draw.line((0, 150, 230, 150), fill = "gray", width = 3)
@@ -243,7 +280,7 @@ class ScreenController(LoggableClass):
         draw.text((  10,  20), dt, font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,   53), "Demnächst:", font = self.FONT, fill = "yellow")
-        draw.text((  10,   70), "todo", font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,   70), self.state.get("next_action", "n/a"), font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
         draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
