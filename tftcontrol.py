@@ -36,13 +36,13 @@ class ScreenController(LoggableClass):
         self.last_input = time.time()
         self.condition = Condition()
         self.tft_state = True
-        self.light_state_indoor = 236
+        self.light_state_indoor = False
         self.light_state_outdoor = False
         self.slots = { (250,  40, 310,  85): self.doorUp,
                        (250, 105, 310, 165): self.doorStop,
                        (250, 185, 310, 230): self.doorDown,
-                       (  0, 200, 115, 240): self.switchIndoorLight,
-                       (116, 200, 230, 240): self.switchOutdoorLight,
+                       (  0, 200, 115, 240): self.switchOutdoorLight,
+                       (116, 200, 230, 240): self.switchIndoorLight,
                        (  0,  50, 230, 100): self.switchDoorAutomatic,
                      }
 
@@ -93,6 +93,7 @@ class ScreenController(LoggableClass):
             "temperature": str(state.get("temperature", "n/a")),
             "light_sensor": str(state.get("light_sensor", "n/a")),
             "next_action": self.GetNextActionText(state),
+            "automatic": state.get("automatic", True),
         }
 
         self.state = ns

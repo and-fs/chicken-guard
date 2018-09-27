@@ -16,8 +16,8 @@ class Sensors(LoggableClass):
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
     SMBUS_CH_AIN  = 0x41    # AIN
-    SMBUS_CH_POTI = 0x42    # Potentiometer-Kanal
-    SMBUS_CH_TEMP = 0x43    # Temperatur
+    SMBUS_CH_TEMP = 0x42    # Temperatur
+    SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
     def __init__(self):
@@ -171,7 +171,7 @@ class Board(LoggableClass):
         Schaltet das Aussenlicht ein, wenn 'swon' True ist. (sonst aus)
         """
         self.light_state_outdoor = swon
-        self.SwitchRelais(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        GPIO.output(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
         self.info("Switched outdoor light %s", "on" if swon else "off")
 
     def SwitchIndoorLight(self, swon:bool):
@@ -179,7 +179,7 @@ class Board(LoggableClass):
         Schaltet die Innenbeleuchtung ein, wenn 'swon' True ist. (sonst aus)
         """
         self.light_state_indoor = swon
-        self.SwitchRelais(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
+        GPIO.output(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
         self.info("Switched indoor light %s", "on" if swon else "off")
 
     def IsIndoorLightOn(self):
