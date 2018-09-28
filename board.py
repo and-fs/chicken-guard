@@ -3,9 +3,20 @@
 # ---------------------------------------------------------------------------------------
 import threading
 import os
+import math
 from shared import LoggableClass
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
+# ---------------------------------------------------------------------------------------
+def analogToCelsius(analog_value):
+    """
+    Rechnet den vom Thermistor des PCF8591 gelieferten Analogwert in Grad Celsius um.
+    """
+    nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
+    material_constant = 1100.0 # Materialkonstante des Thermistor aus dem Datenblatt
+    calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
+    temp = 1.0 / (1.0 / nominal_temp + 1.0 / material_constant * math.log(analog_value / calibration_value))
+    return temp - 273.15
 # ---------------------------------------------------------------------------------------
 class Sensors(LoggableClass):
     """
@@ -59,8 +70,15 @@ class Sensors(LoggableClass):
         return median
 
     def ReadTemperature(self):
+        """
+        Liest den Widerstandswert des Thermistor aus dem entsprechenden Kanal
+        und liefert à conto dessen die Temperatur in °C zurück.
+        """
         self.debug("Reading temperature.")
-        return self.ReadChannel(self.SMBUS_CH_TEMP)
+        analog_value = self.ReadChannel(self.SMBUS_CH_TEMP)
+        t = analogToCelsius(analog_value)
+        self.debug("Read a temperatur of %.2f°C.", t)
+        return t
 
     def ReadLight(self):
         self.debug("Reading light sensor.")
