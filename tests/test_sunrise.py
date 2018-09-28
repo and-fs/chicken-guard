@@ -111,6 +111,54 @@ def test_dooraction():
                     check(False, "Unexpected door state switch within 5 hours at %s", dt)
         check(True, "Door action check at %s.", today)
 # ---------------------------------------------------------------------------------------
+def test_nextactions():
+    """
+    Prüft die Ermittlung der nächsten Aktionen (sunrise.GetNextActions):
+        - geprüft wird minütlich in den Tagen aus sdate
+        - die jeweils nächste Operation muss mit den Zeiten aus sdate übereinstimmen
+    """
+    for day, dawn, dusk in sdata:
+        today = day.date()
+        dawn = datetime.combine(today, dawn)
+        dusk = datetime.combine(today, dusk)
+        (open_time, close_time) = _exp_times(today, dawn, dusk)
+        for hour in range(0, 23):
+            for minute in range(0, 59):
+                t = time(hour = hour, minute = minute)
+                dt = datetime.combine(today, t)
+                next_actions = sunrise.GetNextActions(dt, open_time, close_time)
+                if len(next_actions) != 2:
+                    check(False, "Expected 2 actions as result of GetNextActions(), got: %r", next_actions)
+                a1, a2 = next_actions
+
+                if len(a1) != 2:
+                    check(False, "Expected 2 items in step, got: %r", a1)
+                if len(a2) != 2:
+                    check(False, "Expected 2 items in step, got: %r", a2)
+
+                ntime, naction = a1
+                ntime = _norm(ntime)
+
+                if dt < open_time:
+                    if naction != DOOR_OPEN:
+                        check(False, "(1) Expected %r as next action at %s, got: %r", DOOR_OPEN, dt, naction)
+                    if open_time != ntime:
+                        check(False, "(1) Expected %s as next action time at %s, got: %s", open_time, dt, ntime)
+                    continue
+
+                if dt < close_time:
+                    if naction != DOOR_CLOSED:
+                        check(False, "(2) Expected %r as next action at %s, got: %r", DOOR_CLOSED, dt, naction)
+                    if close_time != ntime:
+                        check(False, "(2) Expected %s as next action time at %s, got: %s", close_time, dt, ntime)
+                    continue
+
+                # jetzt sind wir schon am Folgetag
+                if naction != DOOR_OPEN:
+                    check(False, "(3) Expected %r as next action at %s, got: %r.", DOOR_OPEN, dt, a1)
+
+        check(True, "Next action check at %s.", today)
+# ---------------------------------------------------------------------------------------
 @testfunction
 def test():
     test_consistency(datetime(2018, 3, 25, 14, 23))
@@ -118,6 +166,7 @@ def test():
     test_consistency(datetime(2018, 8, 25, 11, 16))
     test_times()
     test_dooraction()
+    test_nextactions()
     return True
 # ---------------------------------------------------------------------------------------
 if __name__ == '__main__':
