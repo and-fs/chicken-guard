@@ -26,8 +26,8 @@ class Sensors(LoggableClass):
     
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
-    SMBUS_CH_AIN  = 0x41    # AIN
-    SMBUS_CH_TEMP = 0x42    # Temperatur
+    SMBUS_CH_AIN  = 0x42    # AIN
+    SMBUS_CH_TEMP = 0x41    # Temperatur
     SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
@@ -76,7 +76,10 @@ class Sensors(LoggableClass):
         """
         self.debug("Reading temperature.")
         analog_value = self.ReadChannel(self.SMBUS_CH_TEMP)
-        t = analogToCelsius(analog_value)
+        try:
+            t = analogToCelsius(analog_value)
+        except ValueError: # Wert ausserhalb des Bereichs
+            t = -100.0
         self.debug("Read a temperatur of %.2f°C.", t)
         return t
 

@@ -50,11 +50,11 @@ MOTOR_ON = PIN_RELAIS_1
 #: PIN für das Relais mit der Drehrichtung (siehe MOVE_UP, MOVE_DOWN)
 MOVE_DIR = PIN_RELAIS_2
 
-#: Schaltwert für das Relais MOVE_DIR nach Links
-MOVE_UP = 0
+#: Schaltwert für das Relais MOVE_DIR nach oben
+MOVE_UP = 1
 
-#: Schaltwert für das Relais MOVE_DIR nach Rechts
-MOVE_DOWN = 1
+#: Schaltwert für das Relais MOVE_DIR nach unten
+MOVE_DOWN = 0
 
 #: Oberer Magnetkontakt
 REED_UPPER = PIN_REED_1

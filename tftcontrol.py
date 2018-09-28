@@ -92,11 +92,14 @@ class ScreenController(LoggableClass):
     def setState(self, state):
         # moving_up, closed, open, moving_down
         self.door_state = state.get("door", "n/a")
-        self.light_state_indoor = state.get("indoor_light", False)
-        self.light_state_outdoor = state.get("outdoor_light", False)
+        #self.light_state_indoor = state.get("indoor_light", False)
+        #self.light_state_outdoor = state.get("outdoor_light", False)
         
         try:
             tstr = "%2.f°C" % (state["temperature"],)
+        except KeyError:
+            self.error("Missing 'temperature' in state: %r", state)
+            tstr = "n/a"
         except Exception:
             self.exception("Failed to handle temperatur from state: %r", state)
             tstr = "FEHLER"
@@ -247,7 +250,7 @@ class ScreenController(LoggableClass):
 
     def OnIndoorLightSwitched(self, result = None):
         self.debug("Received indoor light switch callback: %r", result)
-        self.light_state_indoor = not self.light_state_indoor
+        self.light_state_indoor = result
         self.needsUpdate()
 
     def switchIndoorLight(self):
@@ -256,7 +259,7 @@ class ScreenController(LoggableClass):
 
     def OnOutdoorLightSwitched(self, result = None):
         self.debug("Received outdoor light switch callback: %r", result)
-        self.light_state_outdoor = not self.light_state_outdoor
+        self.light_state_outdoor = result
         self.needsUpdate()
 
     def switchOutdoorLight(self):
@@ -303,7 +306,7 @@ class ScreenController(LoggableClass):
         draw.line((115, 100, 115, 240), fill = "gray", width = 3)
 
         # Info - Texte
-        dt = datetime.now().strftime("%H:%M")
+        dt = datetime.now().strftime("%d.%m.%y %H:%M")
         draw.text((   5,   3), "Zeit:", font = self.FONT, fill = "yellow")
         draw.text((  10,  20), dt, font = self.FONT_BIG, fill = "white", align = "right")
 

@@ -66,7 +66,7 @@ def _StateChangeHandler(logger, handler, terminate_condition):
         use_builtin_types = True,
     )
     
-    waittime = 5.0
+    waittime = 30.0
 
     while not terminate_condition():
         now = time.time()

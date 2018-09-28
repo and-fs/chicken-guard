@@ -130,7 +130,7 @@ class Controller(LoggableClass):
         #: Liste der nächsten Schritte, jeder besteht aus einem Tupel
         #: mit Zeitstempel und der Aktion, die dann vorgenommen wird
         #: (DOOR_OPEN oder DOOR_CLOSED)
-        self.next_actions = []
+        self.next_actions = tuple()
 
         #: Gibt an, ob die Tür über die Automatic gesteuert wird
         #: oder manuell. Wird vom job_timer verwendet.
@@ -150,10 +150,8 @@ class Controller(LoggableClass):
             return
         # ansonsten merken und den State-Setter rufen
         # (der setzt dann den Status entsprechend)
-        self.next_actions == actions
-        with self._state_lock:
-            state = self._state[1].copy()
-        self._BoardStateChanged(state)
+        self.next_actions = actions
+        self._UpdateBoardState()
 
     def SwitchIndoorLight(self, swon: bool) -> bool:
         self.debug("Received indoor light switch to %r request.", swon)
@@ -242,10 +240,15 @@ class Controller(LoggableClass):
         state['automatic'] = self.automatic
         return state
 
+    def _UpdateBoardState(self):
+        with self._state_lock:
+            state = self._state[1].copy()
+        self._BoardStateChanged(state)
+
     def _BoardStateChanged(self, state):
-        self.info("Board state changed: %s", state)
         state['next_actions'] = self.next_actions
         state['automatic'] = self.automatic
+        self.info("Board state changed: %s", state)
         with self._state_lock:
             self._state = (True, state)
             self._state_cond.notify_all()
@@ -273,6 +276,7 @@ class Controller(LoggableClass):
         self.automatic = False
         self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
         self.info("Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME))
+        self._UpdateBoardState()
 
     def EnableAutomatic(self):
         """
@@ -283,6 +287,7 @@ class Controller(LoggableClass):
         self.automatic = True
         self.automatic_enable_time = -1
         self.info("Door automatic has been enabled.")
+        self._UpdateBoardState()
         self.job_timer.WakeUp()
 
     def CleanUp(self):

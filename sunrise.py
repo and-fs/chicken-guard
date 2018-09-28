@@ -1,22 +1,5 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
-"""
-Dieses Script berechnet die Sonnenaufgangs / -untergangsdaten für die
-kommenden 7 Tage und legt das Ergebnis unter resources/sunset.data
-als Tab-getrennte Werte ab.
-
-Beispiel::
-17.09.2018	06:48	19:11
-18.09.2018	06:50	19:09
-19.09.2018	06:53	19:06
-20.09.2018	06:55	19:04
-21.09.2018	06:57	19:02
-22.09.2018	07:00	18:59
-23.09.2018	07:02	18:57
-24.09.2018	07:04	18:55
-25.09.2018	07:07	18:52
-26.09.2018	07:09	18:50
-"""
 # ------------------------------------------------------------------------
 import math
 import datetime
