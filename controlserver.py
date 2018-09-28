@@ -30,7 +30,7 @@ class JobTimer(LoggableClass):
         self.controller = controller
         self.terminate = False
         self.terminate_condition = threading.Condition()
-        self.thread = threading.Thread(target = self, name = 'JobTimer')
+        self.thread = threading.Thread(target = self, name = 'JobTimer', daemon = True)
         self.last_sunrise_check = 0
         self.last_door_check = 0
 
@@ -44,9 +44,12 @@ class JobTimer(LoggableClass):
         self.info("Starting JobTimer.")
         self.thread.start()
 
-    def Join(self):
+    def Join(self, timeout = None):
         with self.terminate_condition:
-            self.terminate_condition.wait()
+            self.terminate_condition.wait(timeout)
+
+    def IsRunning(self):
+        return self.thread.is_alive()
 
     def ShouldTerminate(self):
         with self.terminate_condition:
@@ -54,6 +57,12 @@ class JobTimer(LoggableClass):
 
     def WakeUp(self):
         with self.terminate_condition:
+            self.terminate_condition.notify_all()
+
+    def ResetCheckTimes(self):
+        with self.terminate_condition:
+            self.last_door_check = 0
+            self.last_sunrise_check = 0
             self.terminate_condition.notify_all()
 
     def __call__(self):
@@ -86,7 +95,7 @@ class JobTimer(LoggableClass):
                             self.controller.CloseDoor()
                     else:
                         # wir sind nach Sonnenauf- aber vor Sonnenuntergang
-                        if not self.controller.IsDoorOpened():
+                        if not self.controller.IsDoorOpen():
                             self.info("Opening door, currently is day.")
                             self.controller.OpenDoor()
             else:
