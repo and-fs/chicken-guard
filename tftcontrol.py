@@ -85,13 +85,31 @@ class ScreenController(LoggableClass):
         self.door_state = state.get("door", "n/a")
         self.light_state_indoor = state.get("indoor_light", False)
         self.light_state_outdoor = state.get("outdoor_light", False)
+        
+        try:
+            tstr = "%2.f°C" % (state["temperature"],)
+        except Exception:
+            self.exception("Failed to handle temperatur from state: %r", state)
+            tstr = "FEHLER"
 
+        try:
+            ls = state["light_sensor"]
+        except KeyError:
+            self.error("Missing 'light_sensor' in state: %r", state)
+            lstr = "FEHLER"
+        else:
+            if ls > 200:
+                lstr = "dunkel"
+            elif ls > 120:
+                lstr = "bewölkt"
+            else:
+                lstr = "sonnig"
         ns = {
             "door": self.door_state,
             "indoor_light": "an" if self.light_state_indoor else "aus",
             "outdoor_light": "an" if self.light_state_outdoor  else "aus",
-            "temperature": str(state.get("temperature", "n/a")),
-            "light_sensor": str(state.get("light_sensor", "n/a")),
+            "temperature": tstr,
+            "light_sensor": lstr,
             "next_action": self.GetNextActionText(state),
             "automatic": state.get("automatic", True),
         }
@@ -281,7 +299,7 @@ class ScreenController(LoggableClass):
         draw.text((  10,  20), dt, font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,   53), "Demnächst:", font = self.FONT, fill = "yellow")
-        draw.text((  10,   70), self.state.get("next_action", "n/a"), font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((  10,   70), self.state["next_action"], font = self.FONT_BIG, fill = "white", align = "right")
 
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
         draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
