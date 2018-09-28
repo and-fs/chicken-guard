@@ -96,3 +96,41 @@ def GetDoorAction(current_datetime, open_time, close_time):
     # es ist nach Schließungszeit
     return DOOR_CLOSED
 # ------------------------------------------------------------------------
+def GetNextActions(current_datetime, open_time, close_time):
+    """
+    Liefert die nächsten beiden Türaktionen ausgehend von der
+    Zeit `current_datetime`.
+
+    Args:
+        current_datetime (datetime): Zeitpunkt, ab dem die Schritte ermittelt
+            werden sollen.
+        open_time (datetime): Zeitpunkt des Öffnens der Tür an dem Tag,
+            in dem `current_datetime` liegt.
+        close_time (datetime): Zeitpunkt des Schließens der Tür an dem Tag,
+            in dem `current_datetime` liegt.
+
+    Returns (tuple):
+        Ein Tuple mit genau zwei Werten, jeder Wert wiederum ein Tuple.
+        Das erste Element ist der Schaltzeitpunkt (datetime), das zweite
+        die durchzuführende Aktion (`OPEN_DOOR`, `CLOSE_DOOR`).
+        Beispiel:
+            ((datetime(2018, 9, 28, 6, 36, 0), 'OPEN_DOOR'),
+             (datetime(2018, 9, 28, 18, 30, 0), 'CLOSE_DOOR'))
+    """
+    if current_datetime < open_time:
+        # aktuell sind wir noch vor der Öffnungszeit des aktuellen
+        # Tages, damit haben wir alles
+        return ((open_time, DOOR_OPEN),
+                (close_time, DOOR_CLOSED))
+
+    # jetzt müssen wir uns noch den nächsten Tag holen
+    n_open_time, n_close_time = GetSuntimes(current_datetime + datetime.timedelta(days = 1))
+    if current_datetime < close_time:
+        # wir sind vor der Schließzeit am aktuellen Tag
+        return ((close_time, DOOR_CLOSED),
+                (n_open_time, DOOR_OPEN))
+
+    # wir befinden uns nach der Schließzeit des aktuellen oder Vortag
+    return ((n_open_time, DOOR_OPEN),
+            (n_close_time, DOOR_CLOSED))
+# ------------------------------------------------------------------------

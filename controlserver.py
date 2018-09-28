@@ -58,7 +58,7 @@ class JobTimer(LoggableClass):
 
     def __call__(self):
         self.info("JobTimer started.")
-        dawn, dusk = sunrise.GetSuntimes(datetime.datetime.now())
+        open_time, close_time = sunrise.GetSuntimes(datetime.datetime.now())
         while not self.ShouldTerminate():
             now = time.time()
             dtnow = datetime.datetime.now()
@@ -67,31 +67,19 @@ class JobTimer(LoggableClass):
             if self.last_sunrise_check + SUNRISE_INTERVAL < now:
                 # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
                 self.info("Doing sunrise time check.")
-                dawn, dusk = sunrise.GetSuntimes(dtnow)
+                open_time, close_time = sunrise.GetSuntimes(dtnow)
                 # jetzt noch die nächsten beiden Aktionen ermitteln (für
                 # die Anzeige im Display)
-                if dtnow < dawn:
-                    # damit haben wir zwei, das reicht
-                    next_steps = [(dawn, DOOR_OPEN),
-                                  (dusk, DOOR_CLOSED)]
-                else:
-                    # jetzt müssen wir uns noch den nächsten Tag holen
-                    ndawn, ndusk = sunrise.GetSuntimes(dtnow + datetime.timedelta(days = 1))
-                    if dtnow < dusk:
-                        next_steps = [(dusk, DOOR_CLOSED),
-                                      (dawn, DOOR_OPEN)]
-                    else:
-                        next_steps = [(ndawn, DOOR_OPEN),
-                                      (ndusk, DOOR_CLOSED)]
+                next_steps = sunrise.GetNextActions(dtnow, open_time, close_time)
                 self.controller.SetNextActions(next_steps)
                 self.last_sunrise_check = now
 
             if self.controller.automatic:
                 # müssen wir die Tür öffnen / schließen?
                 if self.last_door_check + DOORCHECK_INTERVAL < now:
-                    self.logger.debug("Doing door automatic check.")                
+                    self.logger.debug("Doing door automatic check.")
                     self.last_door_check = now
-                    action = sunrise.GetDoorAction(dtnow, dawn, dusk)
+                    action = sunrise.GetDoorAction(dtnow, open_time, close_time)
                     if action == DOOR_CLOSED:
                         if not self.controller.IsDoorClosed():
                             self.info("Closing door, currently is after night.")
@@ -131,6 +119,7 @@ class Controller(LoggableClass):
         self._state_cond = threading.Condition(self._state_lock)
         self.board.SetStateChangeHandler(self._BoardStateChanged)
         self.job_timer = JobTimer(self)
+        self.job_timer.Start()
 
     def SetNextActions(self, actions):
         self.logger.debug("Received next actions list: %s", actions)
