@@ -1,5 +1,14 @@
 #!python3
 # -*- coding: utf8 -*-
+"""
+Steuerung der Anzeige mit Anbindung an den ControlServer via XMLRPC.
+
+Als cronjob mit Start bei jedem Boot einrichten::
+    sudo crontab -e
+    reboot /usr/bin/python3 /usr/chickenguard/tftcontrol.py
+
+Beenden mit CTRL-C oder `kill -INT <pid>`.
+"""
 # ------------------------------------------------------------------------
 import sys
 import time

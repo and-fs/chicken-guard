@@ -99,6 +99,10 @@ SUNRISE_INTERVAL = 7000
 #: Prüfintervall für den Türstatus (Öffnen / Schließen)
 DOORCHECK_INTERVAL = 60
 
+#: Dauer in Sekunden die die Türautomatik bei manueller Bedienung deaktiviert
+#: wird.
+DOOR_AUTOMATIC_OFFTIME = 30 * 60
+
 #: Anzahl Minuten nach Sonnenaufgang, in der die Tür geöffnet wird
 DAWN_OFFSET = 0
 

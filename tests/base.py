@@ -13,7 +13,7 @@ CATCH_TEST_ERRORS = True
 results = {'fail': 0, 'ok': 0, 'total': 0}
 # ---------------------------------------------------------------------------------------
 import shared
-shared.configureLogging("test")
+logger = shared.getLogger("test")
 from gpio import GPIO
 # ---------------------------------------------------------------------------------------
 class TestError(Exception):
@@ -41,6 +41,7 @@ def testfunction(fu):
         except TestError as e:
             result = False
             print ("Test failed:", e)
+            logger.error("Test failed: %s", e)
             if not CATCH_TEST_ERRORS:
                 raise
         for k in ('total', 'ok', 'fail'):
@@ -48,8 +49,10 @@ def testfunction(fu):
         msg = "{ok} of {total} succeeded, {fail} failed.".format(**res_before)
         if result:
             print ("SUCCEEDED:", msg)
+            logger.info("SUCCEEDED: %s", msg)
         else:
             print ("FAILED:", msg)
+            logger.error("FAILED: %s", msg)
         return result
     return call
 # ---------------------------------------------------------------------------------------
@@ -68,9 +71,11 @@ def check(condition, message, *args):
     if condition:
         results['ok'] += 1
         print ('[OK] ' + (message % args))
+        logger.info(message, *args)
     else:
         results['fail'] += 1
         print ('[FAIL] ' + (message % args))
+        logger.error(message, *args)
         raise TestError(message, *args)
 # ---------------------------------------------------------------------------------------
 def SetInitialGPIOState():

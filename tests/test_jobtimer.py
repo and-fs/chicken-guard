@@ -10,6 +10,7 @@ class ControllerDummy(object):
         self.door_closed = False
         self.actions = []
         self.automatic = True
+        self.automatic_enable_time = -1
     def IsDoorClosed(self):
         return self.door_closed
     def CloseDoor(self):
@@ -20,6 +21,9 @@ class ControllerDummy(object):
         self.door_closed = False
     def SetNextActions(self, actions):
         self.actions = actions
+    def EnableAutomatic(self):
+        self.automatic = True
+        self.automatic_enable_time = -1
 # ---------------------------------------------------------------------------------------
 @testfunction
 def test():
@@ -55,13 +59,30 @@ def test():
     check(len(controller.actions) == 2, "Actions have been calculated (2).")
 
     controller.automatic = False
+    controller.automatic_enable_time = time.time() + 1.0
+    logger.info("Disabling automatic, enable time set to %s", controller.automatic_enable_time)
     timer.ResetCheckTimes()
     timer.Join(0.1)
     check(timer.last_door_check == 0, "Door check skipped when automatic is off.")
 
+    logger.info("Resetted check times, joining timer for 1.5 seconds.")
+    # jetzt müssen wir warten, bis die gesetzte Aktivierungszeit erreicht wurde
+    timer.Join(1.5) 
+    # danach sorgen wir dafür, dass wieder ein Durchlauf stattfindet
+    timer.ResetCheckTimes()
+    # und dem Thread nochmal kurz Zeit geben, etwas zu tun
+    timer.Join(0.2) 
+    
+    logger.info("Checking automatic state at %s", time.time())
+    check(controller.automatic, "Door automatic is reenabled.")
+    check(timer.last_door_check > 0, "Door check done after reenabling automatic.")
+
+
     timer.Terminate()
     check(timer.ShouldTerminate(), "Termination flag is set.")
-    timer.Join(0.1)
+    t = time.time()
+    timer.Join(5)
+    check(t + 0.1 >= time.time(), "Join recognizes termination.")
     check(not timer.IsRunning(), "Timer is not running after termination.")
 
     check(len(controller.actions) == 2, "Actions have been calculated.")

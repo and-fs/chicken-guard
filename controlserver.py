@@ -9,7 +9,7 @@ da so parallele Zugriffe ausgeschlossen sind.
 
 Als cronjob mit Start bei jedem Boot einrichten::
     sudo crontab -e
-    reboot /usr/bin/python3 /usr/www/scripts/controlserver.py
+    reboot /usr/bin/python3 /usr/chickenguard/controlserver.py
 """
 # ------------------------------------------------------------------------
 import xmlrpc.server
@@ -35,7 +35,7 @@ class JobTimer(LoggableClass):
         self.last_door_check = 0
 
     def Terminate(self):
-        self.info("Termination JobTimer.")
+        self.info("Terminating JobTimer.")
         with self.terminate_condition:
             self.terminate = True
             self.terminate_condition.notify_all()
@@ -45,8 +45,10 @@ class JobTimer(LoggableClass):
         self.thread.start()
 
     def Join(self, timeout = None):
+        if not self.IsRunning():
+            return True
         with self.terminate_condition:
-            self.terminate_condition.wait(timeout)
+            return self.terminate_condition.wait(timeout)
 
     def IsRunning(self):
         return self.thread.is_alive()
@@ -83,6 +85,13 @@ class JobTimer(LoggableClass):
                 self.controller.SetNextActions(next_steps)
                 self.last_sunrise_check = now
 
+            if not self.controller.automatic:
+                # wenn am controller die Automatik deaktiviert ist,
+                # müssen wir prüfen, ob diese wieder angeschaltet werden muss
+                if self.controller.automatic_enable_time <= now:
+                    self.info("Enabling door automatic due to reaching manual control timeout.")
+                    self.controller.EnableAutomatic()
+
             if self.controller.automatic:
                 # müssen wir die Tür öffnen / schließen?
                 if self.last_door_check + DOORCHECK_INTERVAL < now:
@@ -92,17 +101,21 @@ class JobTimer(LoggableClass):
                     if action == DOOR_CLOSED:
                         if not self.controller.IsDoorClosed():
                             self.info("Closing door, currently is after night.")
-                            self.controller.CloseDoor()
+                            self.controller.CloseDoor(True)
                     else:
                         # wir sind nach Sonnenauf- aber vor Sonnenuntergang
                         if not self.controller.IsDoorOpen():
                             self.info("Opening door, currently is day.")
-                            self.controller.OpenDoor()
+                            self.controller.OpenDoor(True)
             else:
                 self.logger.debug("Skipped door check, automatic is off.")
 
             with self.terminate_condition:
                 self.terminate_condition.wait(DOORCHECK_INTERVAL)
+
+        # falls jetzt noch jemand im Join hängt, wird der auch benachrichtigt.
+        with self.terminate_condition:
+            self.terminate_condition.notify_all()
 
         self.info("JobTimer stopped.")
 # ------------------------------------------------------------------------
@@ -158,17 +171,53 @@ class Controller(LoggableClass):
     def IsOutdoorLightOn(self) -> bool:
         return self.board.IsOutdoorLightOn()
 
-    def CloseDoor(self) -> bool:
-        self.debug("Received CloseDoor request.")
+    def CloseDoor(self, from_timer:bool = False) -> bool:
+        """
+        Schickt das Kommando zum Schließen der Tür an den ControlServer.
+        `from_timer` wird vom JobTimer gesetzt um zu signalisieren,
+        dass der Aufruf nicht manuell durchgeführt wurde (z.Bsp. über
+        das TFT oder WebFrontend).
+        Bei manueller Ausführung wird mit DisableAutomatic() die
+        Automatik vorübergehend deaktiviert.        
+        """
+        if from_timer:
+            self.info("Timer requests door to close.")
+        else:
+            self.info("Received CloseDoor request.")
+            # bei einer manuellen Aktion schalten wir die
+            # Automatik durch den Timer vorübergehend ab.
+            self.DisableAutomatic()
+
         result = self.board.CloseDoor(waittime = MAX_DOOR_MOVE_DURATION)
         return result == 1
 
-    def OpenDoor(self) -> bool:
-        self.debug("Received OpenDoor request.")
+    def OpenDoor(self, from_timer:bool = False) -> bool:
+        """
+        Schickt das Kommando zum Öffnen der Tür an den ControlServer.
+        `from_timer` wird vom JobTimer gesetzt um zu signalisieren,
+        dass der Aufruf nicht manuell durchgeführt wurde (z.Bsp. über
+        das TFT oder WebFrontend).
+        Bei manueller Ausführung wird mit DisableAutomatic() die
+        Automatik vorübergehend deaktiviert.
+        """
+        if from_timer:
+            self.info("Timer requests door to open.")
+        else:
+            self.info("Received OpenDoor request.")
+            # bei einer manuellen Aktion schalten wir die
+            # Automatik durch den Timer vorübergehend ab.
+            self.DisableAutomatic()
+
         result = self.board.OpenDoor(waittime = MAX_DOOR_MOVE_DURATION)
         return result == 1
 
     def StopDoor(self):
+        """
+        Schickt das Kommando zum Stoppen der Tür an den ControlServer.
+        Wird nicht vom Automat benutzt, von daher wird hier immer von
+        einer manuellen Aktion ausgegangen und die Automatik mit
+        DisableAutomatic() vorübergehend ausser Kraft gesetzt.
+        """
         self.debug("Received StopDoor request.")
         self.board.StopDoor()
 
@@ -178,13 +227,12 @@ class Controller(LoggableClass):
     def IsDoorClosed(self) -> bool:
         return self.board.IsDoorClosed()
 
-    def SwitchDoorAutomatic(self, auto_on:bool):
+    def SwitchDoorAutomatic(self, auto_on:bool) -> bool:
         self.debug("Switching door automatic %s.", "on" if auto_on else "off")
-        self.automatic = auto_on
         if auto_on:
-            # wenn die Automatic angeschalten wird, muss
-            # der Job timer wieder ran.
-            self.job_timer.WakeUp()
+            self.EnableAutomatic()
+        else:
+            self.DisableAutomatic()
         return self.automatic
 
     def GetBoardState(self) -> dict:
@@ -217,6 +265,26 @@ class Controller(LoggableClass):
                 return (dt, action)
         return (None, None)
 
+    def DisableAutomatic(self):
+        """
+        Deaktiviert die Tür-Automatik für die in DOOR_AUTOMATIC_OFFTIME
+        gesetzte Anzahl von Sekunden.
+        """
+        self.automatic = False
+        self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
+        self.info("Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME))
+
+    def EnableAutomatic(self):
+        """
+        Aktiviert die Türautomatik (wieder).
+        """
+        if self.automatic:
+            return
+        self.automatic = True
+        self.automatic_enable_time = -1
+        self.info("Door automatic has been enabled.")
+        self.job_timer.WakeUp()
+
     def CleanUp(self):
         self.job_timer.Terminate()
         self.job_timer.Join()
@@ -245,9 +313,9 @@ class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
 def main():
     """
     Initialisiert das Logging und den Controller und startet diesen.
-    Ausführung bis CTRL-C.
+    Ausführung bis CTRL-C oder `kill -INT <PID>`.
     """
-    logger = shared.getLogger("ctrl-server")
+    logger = shared.getLogger("ControlServer")
     address = (CONTROLLER_HOST, CONTROLLER_PORT)
     logger.info("Starting XML-RPC-Server as %r", address)
     try:
