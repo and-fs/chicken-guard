@@ -39,7 +39,6 @@ class ScreenController(LoggableClass):
     def __init__(self, logger):
         LoggableClass.__init__(self, logger = logger)
         self.door_state = "n/a"
-        self.setState({})
         self.shutdown = False
         self._needs_update = True
         self.last_input = time.time()
@@ -55,7 +54,8 @@ class ScreenController(LoggableClass):
                        (  0,  50, 230, 100): self.switchDoorAutomatic,
                      }
 
-
+        self.setState({})
+        
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         
