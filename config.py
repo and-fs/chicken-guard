@@ -39,10 +39,10 @@ REED_CLOSED = 0              #: Input für Magnetkontakt geschlossen (Kontakt)
 REED_OPENED = 1              #: Input für Magnetkontakt offen (kein Kontakt)
 # ------------------------------------------------------------------------
 #: PIN für das Aussenlicht-Relais (230V)
-LIGHT_OUTDOOR = PIN_RELAIS_3
+LIGHT_OUTDOOR = PIN_RELAIS_4
 
 #: PIN für das Innenlicht-Relais (230V)
-LIGHT_INDOOR = PIN_RELAIS_4
+LIGHT_INDOOR = PIN_RELAIS_3
 
 #: PIN für das Relais mit der Motor-An/Aus-Schaltung (19V)
 MOTOR_ON = PIN_RELAIS_1
