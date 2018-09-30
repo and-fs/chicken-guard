@@ -26,8 +26,8 @@ class Sensors(LoggableClass):
     
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
-    SMBUS_CH_AIN  = 0x42    # AIN
-    SMBUS_CH_TEMP = 0x41    # Temperatur
+    SMBUS_CH_AIN  = 0x41    # AIN
+    SMBUS_CH_TEMP = 0x42    # Temperatur
     SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
@@ -107,8 +107,7 @@ class Board(LoggableClass):
         self.light_state_indoor = False
         self.light_state_outdoor = False
 
-        self._wait_lock = threading.Lock()
-        self._wait_condition = threading.Condition(self._wait_lock)
+        self._wait_condition = threading.Condition()
         self._waiter = None
 
         self.movement_stop_callback = None
@@ -131,8 +130,8 @@ class Board(LoggableClass):
         # Magnetkontakt geschlossen wird, setzen wir einen Interrupt.
         # Da der Magnetkontakt mit LOW geschlossen wird, soll das Event auf
         # die fallende Flanke (Wechsel von HIGH nach LOW) reagieren
-        GPIO.add_event_detect(REED_UPPER, GPIO.FALLING, self.OnReedClosed, bouncetime = 250)
-        GPIO.add_event_detect(REED_LOWER, GPIO.FALLING, self.OnReedClosed, bouncetime = 250)
+        GPIO.add_event_detect(REED_UPPER, GPIO.RISING, self.OnUpperReedClosed, bouncetime = 250)
+        GPIO.add_event_detect(REED_LOWER, GPIO.RISING, self.OnLowerReedClosed, bouncetime = 250)
 
         self.sensor = Sensors()
     # -----------------------------------------------------------------------------------
@@ -220,6 +219,30 @@ class Board(LoggableClass):
     def IsDoorMoving(self):
         return 0 != (self.door_state & Board.DOOR_MOVING)
 
+    def OnUpperReedClosed(self, channel):
+        """
+        Event-Handler für das Triggern des oberen Magnetschalters.
+        Wenn die Bewegungsrichtung nach unten ist, wird
+        das Ereignis ignoriert, sonst an OnReedClosed weitergegeben.
+        """
+        if self.door_state == Board.DOOR_MOVING_DOWN:
+            self.warn("Received upper reed closed event although moving down, ignored.")
+            return        
+        self.info("Upper reed closed.")
+        return self.OnReedClosed(channel)
+
+    def OnLowerReedClosed(self, channel):
+        """
+        Event-Handler für das Triggern des unteren Magnetschalters.
+        Wenn die Bewegungsrichtung nach oben ist, wird
+        das Ereignis ignoriert, sonst an OnReedClosed weitergegeben.
+        """
+        if self.door_state == Board.DOOR_MOVING_UP:
+            self.warn("Received lower reed closed event although moving up, ignored.")
+            return
+        self.info("Lower reed closed.")
+        return self.OnReedClosed(channel)
+
     def OnReedClosed(self, channel):
         """
         Eventhandler für das Erreichen eines Magnetkontakt (Pin an
@@ -239,18 +262,11 @@ class Board(LoggableClass):
                 Dieser kann -1 sein, wenn der Handler wegen Not-Aus
                 gerufen wurde (siehe StopDoor).
         """
-        if channel > 0:
-            self.info("%s reed contact closed, stopping motor.",
-                "Upper" if channel == REED_UPPER else "Lower"
-            )
-        else:
-            self.info("Door stop received, stopping motor.")
-        
         # in jedem Fall halten wir den Motor an
         GPIO.output(MOTOR_ON, RELAIS_OFF)
         
         # und die Richtung setzen wir auch zurück (damit das Relais aus ist)
-        GPIO.output(MOVE_DIR, MOVE_DOWN)
+        GPIO.output(MOVE_DIR, MOVE_UP)
 
         self.door_state = Board.DOOR_NOT_MOVING
 
@@ -264,7 +280,7 @@ class Board(LoggableClass):
                 self.exception("Error while calling movement stop callback.")
 
         if self._waiter:
-            with self._wait_lock:
+            with self._wait_condition:
                 self._waiter.notify_all()
                 self._waiter = None
 
@@ -272,7 +288,6 @@ class Board(LoggableClass):
 
         if (channel >= 0) and (channel not in (REED_UPPER, REED_LOWER)):
             self.error("Reed event handler got unexpected channel %r.", channel)
-            return
 
     def OpenDoor(self, callback = None, waittime = None):
         """
@@ -296,19 +311,14 @@ class Board(LoggableClass):
         """
 
         self.debug("OpenDoor(%r, %r)", callback, waittime)
+
         if self.IsDoorMoving():
             self.warn('Received OpenDoor command while door is currently moving, ignored.')
             return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
+
         if self.IsDoorOpen():
             self.warn('Received OpenDoor command while door is already open, ignored.')
             return -2
-
-        self.CheckForError(self._waiter is None,
-            "Waiting condition is set when using OpenDoor!"
-        )
-
-        if waittime:
-            self._waiter = self._wait_condition
 
         self.debug("Setting callback for OpenDoor to %r", callback)
         self.movement_stop_callback = callback
@@ -317,16 +327,24 @@ class Board(LoggableClass):
         GPIO.output(MOVE_DIR, MOVE_UP)   # als erstes das Richtungs-Relais schalten
         GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
 
+        return self._DoorWait("OpenDoor", waittime)
+
+    def _DoorWait(self, action, waittime = None):
+        """
+        Wenn eine Wartezeit angegeben wurde (evaluiert mit True),
+        wird im 
+        """
         result = 1
         if not waittime is None:
-            self.debug("Waiting in OpenDoor for %.4f seconds.", waittime)
-            with self._wait_lock:
+            self._waiter = self._wait_condition
+            self.debug("Waiting in %r for %.4f seconds.", action, waittime)
+            with self._wait_condition:
                 result = 1 if self._waiter.wait(waittime) else 0
-            self._waiter = None
+                self._waiter = None
             if result:
-                self.debug("Door open has been signaled with waittime.")
+                self.debug("%r has been signaled with waittime.", action)
             else:
-                self.warn("Expected 'door open' has not been signaled within %.4f seconds.", waittime)
+                self.warn("Expected %r has not been signaled within %.4f seconds.", action, waittime)
         return result
 
     def CloseDoor(self, callback = None, waittime = None):
@@ -341,38 +359,21 @@ class Board(LoggableClass):
             self.warn('Received CloseDoor command while door is already closed, ignored.')
             return -2
 
-        self.CheckForError(self._waiter is None,
-            "Waiting condition is set when using CloseDoor!"
-        )
-
-        if waittime:
-            self._waiter = self._wait_condition
-
         self.debug("Setting callback for OpenDoor to %r", callback)
         self.movement_stop_callback = callback
-        self.door_state = Board.DOOR_MOVING_UP
+        self.door_state = Board.DOOR_MOVING_DOWN
 
         GPIO.output(MOVE_DIR, MOVE_DOWN) # als erstes das Richtungs-Relais schalten
         GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
 
-        result = 1
-        if not waittime is None:
-            self.debug("Waiting in CloseDoor for %.4f seconds.", waittime)
-            with self._wait_lock:
-                result = 1 if self._waiter.wait(waittime) else 0
-            self._waiter = None
-            if result:
-                self.debug("Door closed has been signaled within waittime.")
-            else:
-                self.warn("Expected 'door closed' has not been signaled within %.4f seconds.", waittime)
-        return result
+        return self._DoorWait("CloseDoor", waittime)
 
     def StopDoor(self):
         """
         Hält die Tür an (insofern sie sich gerade bewegt).
         Ruft dazu einfach 'OnReedClosed' mit Kanal -1.
         """
-        self.debug("StopDoor")
+        self.info("Door stop received, stopping motor.")
         self.OnReedClosed(-1)
     # -----------------------------------------------------------------------------------
     # --- Sensoren ----------------------------------------------------------------------

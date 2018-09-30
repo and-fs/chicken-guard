@@ -74,7 +74,7 @@ OUTPUT_PINS = RELAIS_PINS
 # ------------------------------------------------------------------------
 #: Gibt an, ob zusätzlich zur Fehlerausgabe im Logger eine Exception
 #: ausgelöst werden soll.
-RAISE_ERRORS = True
+RAISE_ERRORS = False
 # ------------------------------------------------------------------------
 #: Längen- und Breitengrad des aktuellen Standort.
 LATITUDE = 51.138904 #: Breite
