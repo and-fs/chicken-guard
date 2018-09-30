@@ -4,6 +4,7 @@
 import threading
 import os
 import math
+import time
 from shared import LoggableClass
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
@@ -27,7 +28,7 @@ class Sensors(LoggableClass):
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
     SMBUS_CH_AIN  = 0x41    # AIN
-    SMBUS_CH_TEMP = 0x42    # Temperatur
+    SMBUS_CH_TEMP = 0x43    # Temperatur
     SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
@@ -110,7 +111,6 @@ class Board(LoggableClass):
         self._wait_condition = threading.Condition()
         self._waiter = None
 
-        self.movement_stop_callback = None
         self.state_change_handler = None
 
         GPIO.setmode(GPIO.BOARD)
@@ -251,9 +251,6 @@ class Board(LoggableClass):
         Schaltet die beiden Relais für Motor-An und Richtung auf AUS
         und setzt den Status der Tür auf "not moving".
 
-        Wenn 'movement_stop_callback' gesetzt ist, wird es aufgerufen und
-        auf None gesetzt. Exceptions werden aufgefangen und geloggt.
-
         Wenn '_waiter' gesetzt ist, wird dieses als Condition behandelt,
         benachrichtigt und auf None gesetzt.
 
@@ -270,15 +267,6 @@ class Board(LoggableClass):
 
         self.door_state = Board.DOOR_NOT_MOVING
 
-        if self.movement_stop_callback:
-            callback = self.movement_stop_callback
-            self.movement_stop_callback = None
-            self.debug("Calling movement stop callback.")
-            try:
-                callback(channel in (REED_UPPER, REED_LOWER))
-            except Exception:
-                self.exception("Error while calling movement stop callback.")
-
         if self._waiter:
             with self._wait_condition:
                 self._waiter.notify_all()
@@ -289,28 +277,37 @@ class Board(LoggableClass):
         if (channel >= 0) and (channel not in (REED_UPPER, REED_LOWER)):
             self.error("Reed event handler got unexpected channel %r.", channel)
 
-    def OpenDoor(self, callback = None, waittime = None):
-        """
-        Fährt die Tür nach oben und gibt zurück, ob das Schließen eingeleitet wurde.
-        Falls die Tür bereits in Bewegung oder sogar offen ist, passiert nichts.
+    def _DoorWait(self, action, waittime = None):
+        result = False
+        if not waittime is None:
+            self._waiter = self._wait_condition
+            self.debug("Waiting in %r for %.4f seconds.", action, waittime)
+            with self._wait_condition:
+                result = self._waiter.wait(waittime)
+                self._waiter = None
+            if result:
+                self.debug("%r has been signaled with waittime.", action)
+            else:
+                self.warn("Expected %r has not been signaled within %.4f seconds.", action, waittime)
+        return result            
+
+    def _DoorTimerControl(self, duration, state, direction):
+        self.door_state = state
+        GPIO.output(MOVE_DIR, direction)   # als erstes das Richtungs-Relais schalten
+        GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
+        # und jetzt warten
+        time.sleep(duration)
+        self.door_state = Board.DOOR_NOT_MOVING
+        return True
+
+    def OpenDoor(self, duration:float = DOOR_MOVE_UP_TIME, from_timer: bool = False):
+
+        self.debug("OpenDoor(duration = %r, from_timer = %r)", duration, from_timer)
         
-        Args:
-            callable: Wenn angegeben, muss es sich hier um eine Funktion handeln,
-                die ein bool als Argumente erwartet. Dieses gibt an, ob die
-                Tür die Endposition erreicht hat.
-                Wird gerufen, sobald die Tür anhält.
-                Der Aufruf erfolgt aus einem anderen Thread.
-            waittime: Wenn nicht None handelt es sich hier um eine Wartezeit in
-                Sekunden als Float (mit Bruchteilen), die diese Funktion wartet
-                bis die Tür offen ist.
-
-        Returns:
-            Eine Zahl < 0 im Fehlerfall, sonst 1.
-            Wurde eine 'waittime' angegeben, ist der Rückgabewert 0 wenn das Timeout
-            ohne Signalisierung überschritten wurde.
-        """
-
-        self.debug("OpenDoor(%r, %r)", callback, waittime)
+        # wenn der Timer steuert, benutzen wir die Wartezeit, da der Stromzaun
+        # Interferenzen erzeugt und die Reeds keine Signale liefern
+        if from_timer:
+            return self._DoorTimerControl(duration, Board.DOOR_MOVING_UP, MOVE_UP)
 
         if self.IsDoorMoving():
             self.warn('Received OpenDoor command while door is currently moving, ignored.')
@@ -320,38 +317,24 @@ class Board(LoggableClass):
             self.warn('Received OpenDoor command while door is already open, ignored.')
             return -2
 
-        self.debug("Setting callback for OpenDoor to %r", callback)
-        self.movement_stop_callback = callback
         self.door_state = Board.DOOR_MOVING_UP
 
         GPIO.output(MOVE_DIR, MOVE_UP)   # als erstes das Richtungs-Relais schalten
         GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
 
-        return self._DoorWait("OpenDoor", waittime)
+        return self._DoorWait("OpenDoor", duration)
 
-    def _DoorWait(self, action, waittime = None):
-        """
-        Wenn eine Wartezeit angegeben wurde (evaluiert mit True),
-        wird im 
-        """
-        result = 1
-        if not waittime is None:
-            self._waiter = self._wait_condition
-            self.debug("Waiting in %r for %.4f seconds.", action, waittime)
-            with self._wait_condition:
-                result = 1 if self._waiter.wait(waittime) else 0
-                self._waiter = None
-            if result:
-                self.debug("%r has been signaled with waittime.", action)
-            else:
-                self.warn("Expected %r has not been signaled within %.4f seconds.", action, waittime)
-        return result
-
-    def CloseDoor(self, callback = None, waittime = None):
+    def CloseDoor(self, duration:float = DOOR_MOVE_DOWN_TIME, from_timer: bool = False):
         """
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
-        self.debug("CloseDoor(%r, %r)", callback, waittime)
+        self.debug("CloseDoor(duration = %r, from_timer = %r)", duration, from_timer)
+
+        # wenn der Timer steuert, benutzen wir die Wartezeit, da der Stromzaun
+        # Interferenzen erzeugt und die Reeds keine Signale liefern
+        if from_timer:
+            return self._DoorTimerControl(duration, Board.DOOR_MOVING_DOWN, MOVE_DOWN)
+
         if self.IsDoorMoving():
             self.warn('Received CloseDoor command while door is currently moving, ignored.')
             return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
@@ -359,14 +342,12 @@ class Board(LoggableClass):
             self.warn('Received CloseDoor command while door is already closed, ignored.')
             return -2
 
-        self.debug("Setting callback for OpenDoor to %r", callback)
-        self.movement_stop_callback = callback
         self.door_state = Board.DOOR_MOVING_DOWN
 
         GPIO.output(MOVE_DIR, MOVE_DOWN) # als erstes das Richtungs-Relais schalten
         GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
 
-        return self._DoorWait("CloseDoor", waittime)
+        return self._DoorWait("CloseDoor", duration)
 
     def StopDoor(self):
         """

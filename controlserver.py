@@ -178,6 +178,7 @@ class Controller(LoggableClass):
         Bei manueller Ausführung wird mit DisableAutomatic() die
         Automatik vorübergehend deaktiviert.        
         """
+        waittime = DOOR_MOVE_DOWN_TIME
         if from_timer:
             self.info("Timer requests door to close.")
         else:
@@ -185,9 +186,9 @@ class Controller(LoggableClass):
             # bei einer manuellen Aktion schalten wir die
             # Automatik durch den Timer vorübergehend ab.
             self.DisableAutomatic()
+            waittime += 1.0
 
-        result = self.board.CloseDoor(waittime = MAX_DOOR_MOVE_DURATION)
-        return result == 1
+        return self.board.CloseDoor(waittime = waittime, from_timer = from_timer)
 
     def OpenDoor(self, from_timer:bool = False) -> bool:
         """
@@ -198,6 +199,7 @@ class Controller(LoggableClass):
         Bei manueller Ausführung wird mit DisableAutomatic() die
         Automatik vorübergehend deaktiviert.
         """
+        waittime = DOOR_MOVE_UP_TIME
         if from_timer:
             self.info("Timer requests door to open.")
         else:
@@ -205,9 +207,9 @@ class Controller(LoggableClass):
             # bei einer manuellen Aktion schalten wir die
             # Automatik durch den Timer vorübergehend ab.
             self.DisableAutomatic()
+            waittime += 1.0
 
-        result = self.board.OpenDoor(waittime = MAX_DOOR_MOVE_DURATION)
-        return result == 1
+        return self.board.OpenDoor(waittime = waittime, from_timer = from_timer)
 
     def StopDoor(self):
         """
