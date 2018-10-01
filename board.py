@@ -109,13 +109,14 @@ class Board(LoggableClass):
         self.light_state_outdoor = False
 
         self._wait_condition = threading.Condition()
-        self._waiter = None
 
         self.state_change_handler = None
 
         GPIO.setmode(GPIO.BOARD)
+        
         self.logger.debug("Settings pins %s to OUT.", OUTPUT_PINS)
         GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = RELAIS_OFF)
+
         self.logger.debug("Settings pins %s to IN.", INPUT_PINS)
         GPIO.setup(INPUT_PINS, GPIO.IN)
 
@@ -125,13 +126,6 @@ class Board(LoggableClass):
             not (self.IsDoorOpen() and self.IsDoorClosed()),
             "Inconsistent door contact state, door is signaled both to be open and closed, check configuration!"
         )
-
-        # damit wir die Bewegung sofort anhalten, wenn der jeweilige
-        # Magnetkontakt geschlossen wird, setzen wir einen Interrupt.
-        # Da der Magnetkontakt mit LOW geschlossen wird, soll das Event auf
-        # die fallende Flanke (Wechsel von HIGH nach LOW) reagieren
-        GPIO.add_event_detect(REED_UPPER, GPIO.RISING, self.OnUpperReedClosed, bouncetime = 250)
-        GPIO.add_event_detect(REED_LOWER, GPIO.RISING, self.OnLowerReedClosed, bouncetime = 250)
 
         self.sensor = Sensors()
     # -----------------------------------------------------------------------------------
@@ -161,29 +155,6 @@ class Board(LoggableClass):
         self.info("Shutdown button has been released, shutting system down.")
         os.system("sudo shutdown -h now")
     # -----------------------------------------------------------------------------------
-    def SwitchRelais(self, channel: int, state: int):
-        """
-        Schaltet das Relais am Pin 'channel' in den Status 'state'.
-        """
-        if self.CheckForError(
-            channel in RELAIS_PINS,
-            "Channel %d is not a relais pin!",
-            channel,
-            errorclass = ValueError
-        ):
-            return
-
-        if self.CheckForError(
-            state in (RELAIS_ON, RELAIS_OFF),
-            "State %d is not valid for relais!",
-            state,
-            errorclass = ValueError
-        ):
-            return
-
-        self.debug("Output %d to pin %d.", state, channel)
-        GPIO.output(channel, state)
-    # -----------------------------------------------------------------------------------
     # --- LICHT -------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------
     def SwitchOutdoorLight(self, swon:bool):
@@ -193,6 +164,7 @@ class Board(LoggableClass):
         self.light_state_outdoor = swon
         GPIO.output(LIGHT_OUTDOOR, RELAIS_ON if swon else RELAIS_OFF)
         self.info("Switched outdoor light %s", "on" if swon else "off")
+        self.CallStateChangeHandler()
 
     def SwitchIndoorLight(self, swon:bool):
         """
@@ -201,6 +173,7 @@ class Board(LoggableClass):
         self.light_state_indoor = swon
         GPIO.output(LIGHT_INDOOR, RELAIS_ON if swon else RELAIS_OFF)
         self.info("Switched indoor light %s", "on" if swon else "off")
+        self.CallStateChangeHandler()
 
     def IsIndoorLightOn(self):
         return self.light_state_indoor
@@ -210,152 +183,153 @@ class Board(LoggableClass):
     # -----------------------------------------------------------------------------------
     # ---- TÜR --------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------
+    def SetDoorState(self, new_state):
+        if self.door_state == new_state:
+            return
+        self.door_state = new_state
+        self.CallStateChangeHandler()
+    # -----------------------------------------------------------------------------------
+    def StartMotor(self, direction):
+        self.info("Starting motor (%s).", "up" if direction == MOVE_UP else "down")
+        GPIO.output(MOVE_DIR, direction)
+        GPIO.output(MOTOR_ON, RELAIS_ON)
+        self.SetDoorState(Board.DOOR_MOVING_UP if direction == MOVE_UP else Board.DOOR_MOVING_DOWN)
+
+    def StopMotor(self):
+        self.info("Stopping motor.")
+        GPIO.output(MOTOR_ON, RELAIS_OFF)
+        GPIO.output(MOVE_DIR, MOVE_UP)
+        self.SetDoorState(Board.DOOR_NOT_MOVING)
+
+    def SyncMoveDoor(self, direction):
+        if direction == MOVE_UP:
+            str_dir = "up"
+            reed_pin = REED_UPPER
+            end_state = Board.DOOR_OPEN
+        else:
+            str_dir = "down"
+            reed_pin = REED_LOWER
+            end_state = Board.DOOR_CLOSED
+
+        self.debug("Moving door %s synchronized.", str_dir)
+
+        if self.door_state & Board.DOOR_MOVING:
+            self.error("Cannot move door, already moving!")
+            return False
+
+        self.StartMotor(direction)
+
+        # maximale Dauer der Anschaltzeit des Motor
+        move_end_time = time.time() + MAX_DOOR_MOVE_DURATION
+
+        reed_signaled = False
+        while not reed_signaled and (move_end_time > time.time()):
+            reed_signaled = self.IsReedClosed(reed_pin)
+
+        if reed_signaled:
+            self.info("Reed %s has been closed.")
+        else:
+            self.warn("Reed %s not closed, reached timeout.")
+
+        self.StopMotor()
+
+        self.SetDoorState(end_state)
+
+    def IsReedClosed(self, reed_pin: int):
+        triggered = 0
+        for i in range(7):
+            if GPIO.input(reed_pin) == REED_CLOSED:
+                if triggered > 3:
+                    # der Magnetkontakt war jetzt 4x 50ms hintereinander
+                    # geschlossen, damit ist die Bedingung erfüllt
+                    return True
+                triggered += 1
+            else:
+                # wenn er nicht geschalten war, beginnen wir von vorn
+                triggered = 0
+            if i < 6: # nach dem letzten Messen warten wir nicht
+                time.sleep(0.05)
+        return False
+
     def IsDoorOpen(self):
-        return GPIO.input(REED_UPPER) == REED_CLOSED
+        return self.IsReedClosed(REED_UPPER)
 
     def IsDoorClosed(self):
-        return GPIO.input(REED_LOWER) == REED_CLOSED
+        return self.IsReedClosed(REED_LOWER)
 
     def IsDoorMoving(self):
         return 0 != (self.door_state & Board.DOOR_MOVING)
 
-    def OnUpperReedClosed(self, channel):
-        """
-        Event-Handler für das Triggern des oberen Magnetschalters.
-        Wenn die Bewegungsrichtung nach unten ist, wird
-        das Ereignis ignoriert, sonst an OnReedClosed weitergegeben.
-        """
-        if self.door_state == Board.DOOR_MOVING_DOWN:
-            self.warn("Received upper reed closed event although moving down, ignored.")
-            return        
-        self.info("Upper reed closed.")
-        return self.OnReedClosed(channel)
-
-    def OnLowerReedClosed(self, channel):
-        """
-        Event-Handler für das Triggern des unteren Magnetschalters.
-        Wenn die Bewegungsrichtung nach oben ist, wird
-        das Ereignis ignoriert, sonst an OnReedClosed weitergegeben.
-        """
-        if self.door_state == Board.DOOR_MOVING_UP:
-            self.warn("Received lower reed closed event although moving up, ignored.")
-            return
-        self.info("Lower reed closed.")
-        return self.OnReedClosed(channel)
-
-    def OnReedClosed(self, channel):
+    def _OnReedClosed(self, channel):
         """
         Eventhandler für das Erreichen eines Magnetkontakt (Pin an
         'channel' geht auf LOW).
 
-        Schaltet die beiden Relais für Motor-An und Richtung auf AUS
-        und setzt den Status der Tür auf "not moving".
+        Ruft `StopMotor`.
 
-        Wenn '_waiter' gesetzt ist, wird dieses als Condition behandelt,
-        benachrichtigt und auf None gesetzt.
-
-        Args:
-            channel: Der Kanal, der das Event ausgelöst hat.
-                Dieser kann -1 sein, wenn der Handler wegen Not-Aus
-                gerufen wurde (siehe StopDoor).
+        Benachrichtigt die `wait_condition`.
         """
-        # in jedem Fall halten wir den Motor an
-        GPIO.output(MOTOR_ON, RELAIS_OFF)
+        # Unter Umständen hier nochmal IsReedClosed(channel) abfragen?
+
+        self.info("Received %s reed event.", "lower" if channel == REED_LOWER else "upper")
         
-        # und die Richtung setzen wir auch zurück (damit das Relais aus ist)
-        GPIO.output(MOVE_DIR, MOVE_UP)
+        self.StopMotor()
 
-        self.door_state = Board.DOOR_NOT_MOVING
-
-        if self._waiter:
-            with self._wait_condition:
-                self._waiter.notify_all()
-                self._waiter = None
-
-        self.CallStateChangeHandler()
+        with self._wait_condition:
+            self._wait_condition.notify_all()
 
         if (channel >= 0) and (channel not in (REED_UPPER, REED_LOWER)):
             self.error("Reed event handler got unexpected channel %r.", channel)
 
-    def _DoorWait(self, action, waittime = None):
-        result = False
-        if not waittime is None:
-            self._waiter = self._wait_condition
-            self.debug("Waiting in %r for %.4f seconds.", action, waittime)
-            with self._wait_condition:
-                result = self._waiter.wait(waittime)
-                self._waiter = None
-            if result:
-                self.debug("%r has been signaled with waittime.", action)
-            else:
-                self.warn("Expected %r has not been signaled within %.4f seconds.", action, waittime)
-        return result            
-
-    def _DoorTimerControl(self, duration, state, direction):
-        self.door_state = state
-        GPIO.output(MOVE_DIR, direction)   # als erstes das Richtungs-Relais schalten
-        GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
-        # und jetzt warten
-        time.sleep(duration)
-        self.door_state = Board.DOOR_NOT_MOVING
-        return True
-
-    def OpenDoor(self, duration:float = DOOR_MOVE_UP_TIME, from_timer: bool = False):
-
-        self.debug("OpenDoor(duration = %r, from_timer = %r)", duration, from_timer)
-        
-        # wenn der Timer steuert, benutzen wir die Wartezeit, da der Stromzaun
-        # Interferenzen erzeugt und die Reeds keine Signale liefern
-        if from_timer:
-            return self._DoorTimerControl(duration, Board.DOOR_MOVING_UP, MOVE_UP)
-
+    def _MoveDoor(self, direction):
         if self.IsDoorMoving():
-            self.warn('Received OpenDoor command while door is currently moving, ignored.')
-            return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
+            self.warn('Cannot move door, door is already moving.')
+            return False
 
-        if self.IsDoorOpen():
-            self.warn('Received OpenDoor command while door is already open, ignored.')
-            return -2
+        if direction == MOVE_UP:
+            reed_pin = REED_UPPER
+            str_dir = "up"
+        else:
+            reed_pin = REED_LOWER
+            str_dir = "down"
 
-        self.door_state = Board.DOOR_MOVING_UP
+        if self.IsReedClosed(reed_pin):
+            self.warn("Cannot move %r, reed is closed.", str_dir)
+            return False
 
-        GPIO.output(MOVE_DIR, MOVE_UP)   # als erstes das Richtungs-Relais schalten
-        GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
+        self.StartMotor(direction)
 
-        return self._DoorWait("OpenDoor", duration)
+        GPIO.add_event_detect(reed_pin, GPIO.RISING, self._OnReedClosed, bouncetime = 250)
 
-    def CloseDoor(self, duration:float = DOOR_MOVE_DOWN_TIME, from_timer: bool = False):
+        self.debug("Waiting max %.4f seconds for reed (%r).", MAX_DOOR_MOVE_DURATION, str_dir)
+        with self._wait_condition:
+            result = self._wait_condition.wait(MAX_DOOR_MOVE_DURATION)
+        GPIO.remove_event_detect(reed_pin)
+
+        if result:
+            self.debug("Reed (%r) has been signaled with waittime.", str_dir)
+        else:
+            self.warn("Expected reed (%r) has not been signaled within %.4f seconds.", str_dir, MAX_DOOR_MOVE_DURATION)
+
+        return result
+
+    def OpenDoor(self):
+        self.debug("Executing OpenDoor command.")
+        return self._MoveDoor(MOVE_UP)
+
+    def CloseDoor(self):
         """
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
-        self.debug("CloseDoor(duration = %r, from_timer = %r)", duration, from_timer)
-
-        # wenn der Timer steuert, benutzen wir die Wartezeit, da der Stromzaun
-        # Interferenzen erzeugt und die Reeds keine Signale liefern
-        if from_timer:
-            return self._DoorTimerControl(duration, Board.DOOR_MOVING_DOWN, MOVE_DOWN)
-
-        if self.IsDoorMoving():
-            self.warn('Received CloseDoor command while door is currently moving, ignored.')
-            return -1 # die tür ist bereits in Bewegung, wir machen hier erstmal nichts
-        if self.IsDoorClosed():
-            self.warn('Received CloseDoor command while door is already closed, ignored.')
-            return -2
-
-        self.door_state = Board.DOOR_MOVING_DOWN
-
-        GPIO.output(MOVE_DIR, MOVE_DOWN) # als erstes das Richtungs-Relais schalten
-        GPIO.output(MOTOR_ON, RELAIS_ON) # dann den Motor anmachen
-
-        return self._DoorWait("CloseDoor", duration)
+        self.debug("Executing CloseDoor command.")
+        return self._MoveDoor(MOVE_DOWN)
 
     def StopDoor(self):
         """
         Hält die Tür an (insofern sie sich gerade bewegt).
-        Ruft dazu einfach 'OnReedClosed' mit Kanal -1.
         """
-        self.info("Door stop received, stopping motor.")
-        self.OnReedClosed(-1)
+        self.info("Executing StopDoor command.")
+        self.StopDoor()
     # -----------------------------------------------------------------------------------
     # --- Sensoren ----------------------------------------------------------------------
     # -----------------------------------------------------------------------------------

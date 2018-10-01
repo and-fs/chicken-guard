@@ -19,41 +19,42 @@ def test():
     check(b.IsDoorClosed(), "Initially door should be closed.")
     check(not b.IsDoorOpen(), "Initially door should not be open.")
 
-    cbres = []
-    def cb(reed_closed):
-        cbres.append(reed_closed)
-
     # --- Tür öffnen ---
 
-    res = b.OpenDoor(callback = cb)
-    check(res == 1, "Calling OpenDoor() when door is closed should be possible!")
-    
+    f = Future(b.OpenDoor)
+    f.WaitForExectionStart(1.0)
+
     res = b.OpenDoor()
-    check(res < 0, "Calling OpenDoor() while door is moving should not be possible!")
+    check(not res, "Calling OpenDoor() while door is moving should not be possible!")
+
+    check(not f.HasResult(), "OpenDoor() is running.")
 
     with GPIO.write_context():
         GPIO.output(REED_LOWER, REED_OPENED) # unten kein Signal mehr
+
     check(not b.IsDoorClosed(), "Door should not be closed when lower reed is HIGH")
 
     with GPIO.write_context():
         GPIO.output(REED_UPPER, REED_CLOSED) # oben auf LOW
-    time.sleep(0.5) # anderen Thread ranlassen
+
+    time.sleep(0.5)
+    check(f.HasResult(), "OpenDoor() is finished.")
 
     check(b.IsDoorOpen(), "Door should be opened when upper reed is LOW")
     check(not b.IsDoorClosed(), "Door should not be closed when lower reed is HIGH")
-    check(cbres and (cbres[-1] == True), "Callback for open door has not be called.")
+    check(f.WaitForResult(), "OpenDoor() succeeded.")
 
     res = b.OpenDoor()
-    check(res < 0, "Calling OpenDoor() while door is opened shouldn't be possible")
+    check(not res, "Calling OpenDoor() while door is opened shouldn't be possible")
 
     # --- Tür schließen ---
 
-    cbres.clear()
-    res = b.CloseDoor(callback = cb)
-    check(res == 1, "Calling CloseDoor() when door is open should be possible")
+    f = Future(b.CloseDoor)
+    f.WaitForExectionStart(1.0)
+    check(not f.HasResult(), "Calling CloseDoor() when door is open should be possible")
     
     res = b.CloseDoor()
-    check(res < 0, "Calling CloseDoor() while door is moving should not be possible")
+    check(not res, "Calling CloseDoor() while door is moving should not be possible")
 
     with GPIO.write_context():
         GPIO.output(REED_UPPER, REED_OPENED) # oben kein Signal mehr
@@ -61,14 +62,32 @@ def test():
 
     with GPIO.write_context():
         GPIO.output(REED_LOWER, REED_CLOSED) # unten auf LOW
-    time.sleep(0.2) # anderen Thread ranlassen
+
+    time.sleep(0.5) # anderen Thread ranlassen
+    check(f.HasResult(), "CloseDoor() is finished.")
+
 
     check(b.IsDoorClosed(), "Door should be closed when lower reed is LOW")
     check(not b.IsDoorOpen(), "Door should not be open when upper reed is HIGH")
-    check(cbres and (cbres[-1] == True), "Callback for close door has not be called.")
+    check(f.WaitForResult(), "CloseDoor() succeeded.")
 
     res = b.CloseDoor()
-    check(res < 0, "Calling CloseDoor() while door is open shouldn't be possible.")
+    check(not res, "Calling CloseDoor() while door is open shouldn't be possible.")
+
+    # Tür timeouts
+
+    f = Future(b.OpenDoor)
+    start_t = time.time()
+    f.WaitForExectionStart(1.0)
+    check(not f.HasResult(), "OpenDoor() is running.")
+
+    timeout_check = True
+    try:
+        res = f.WaitForResult(MAX_DOOR_MOVE_DURATION)
+    except TimeoutError:
+        timeout_check = False
+    check(timeout_check, "Door command returns when reaching timeout.")
+    check(not res, "Door command result is False when reaching timeout.")
 
     # --- Innenbeleuchtung ---
     check(not b.IsIndoorLightOn(), "Indoor light should be initially off.")
