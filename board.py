@@ -28,7 +28,7 @@ class Sensors(LoggableClass):
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
     SMBUS_CH_AIN  = 0x41    # AIN
-    SMBUS_CH_TEMP = 0x43    # Temperatur
+    SMBUS_CH_TEMP = 0x44    # Temperatur
     SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
@@ -100,6 +100,8 @@ class Board(LoggableClass):
     DOOR_MOVING_UP = 1
     DOOR_MOVING_DOWN = 2
     DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN
+    DOOR_OPEN = 4
+    DOOR_CLOSED = 8
 
     def __init__(self):
         LoggableClass.__init__(self, name = "Board")
@@ -187,7 +189,7 @@ class Board(LoggableClass):
         if self.door_state == new_state:
             return
         self.door_state = new_state
-        self.CallStateChangeHandler()
+        #self.CallStateChangeHandler()
     # -----------------------------------------------------------------------------------
     def StartMotor(self, direction):
         self.info("Starting motor (%s).", "up" if direction == MOVE_UP else "down")
@@ -195,11 +197,11 @@ class Board(LoggableClass):
         GPIO.output(MOTOR_ON, RELAIS_ON)
         self.SetDoorState(Board.DOOR_MOVING_UP if direction == MOVE_UP else Board.DOOR_MOVING_DOWN)
 
-    def StopMotor(self):
+    def StopMotor(self, end_state = DOOR_NOT_MOVING):
         self.info("Stopping motor.")
         GPIO.output(MOTOR_ON, RELAIS_OFF)
         GPIO.output(MOVE_DIR, MOVE_UP)
-        self.SetDoorState(Board.DOOR_NOT_MOVING)
+        self.SetDoorState(end_state)
 
     def SyncMoveDoor(self, direction):
         if direction == MOVE_UP:
@@ -227,28 +229,25 @@ class Board(LoggableClass):
             reed_signaled = self.IsReedClosed(reed_pin)
 
         if reed_signaled:
-            self.info("Reed %s has been closed.")
+            self.info("Reed %s has been closed.", str_dir)
         else:
-            self.warn("Reed %s not closed, reached timeout.")
+            self.warn("Reed %s not closed, reached timeout.", str_dir)
 
-        self.StopMotor()
-
-        self.SetDoorState(end_state)
+        self.StopMotor(end_state)
 
     def IsReedClosed(self, reed_pin: int):
         triggered = 0
-        for i in range(7):
+        for i in range(15):
             if GPIO.input(reed_pin) == REED_CLOSED:
-                if triggered > 3:
-                    # der Magnetkontakt war jetzt 4x 50ms hintereinander
+                if triggered > 4:
+                    # der Magnetkontakt war jetzt 4x
                     # geschlossen, damit ist die Bedingung erfüllt
+                    self.debug("Reed trigger: %d of %d", triggered, i)
                     return True
                 triggered += 1
-            else:
-                # wenn er nicht geschalten war, beginnen wir von vorn
-                triggered = 0
-            if i < 6: # nach dem letzten Messen warten wir nicht
+            if i < 14: # nach dem letzten Messen warten wir nicht
                 time.sleep(0.05)
+        self.debug("Reed trigger: %d of %d", triggered, i)
         return False
 
     def IsDoorOpen(self):
@@ -260,76 +259,23 @@ class Board(LoggableClass):
     def IsDoorMoving(self):
         return 0 != (self.door_state & Board.DOOR_MOVING)
 
-    def _OnReedClosed(self, channel):
-        """
-        Eventhandler für das Erreichen eines Magnetkontakt (Pin an
-        'channel' geht auf LOW).
-
-        Ruft `StopMotor`.
-
-        Benachrichtigt die `wait_condition`.
-        """
-        # Unter Umständen hier nochmal IsReedClosed(channel) abfragen?
-
-        self.info("Received %s reed event.", "lower" if channel == REED_LOWER else "upper")
-        
-        self.StopMotor()
-
-        with self._wait_condition:
-            self._wait_condition.notify_all()
-
-        if (channel >= 0) and (channel not in (REED_UPPER, REED_LOWER)):
-            self.error("Reed event handler got unexpected channel %r.", channel)
-
-    def _MoveDoor(self, direction):
-        if self.IsDoorMoving():
-            self.warn('Cannot move door, door is already moving.')
-            return False
-
-        if direction == MOVE_UP:
-            reed_pin = REED_UPPER
-            str_dir = "up"
-        else:
-            reed_pin = REED_LOWER
-            str_dir = "down"
-
-        if self.IsReedClosed(reed_pin):
-            self.warn("Cannot move %r, reed is closed.", str_dir)
-            return False
-
-        self.StartMotor(direction)
-
-        GPIO.add_event_detect(reed_pin, GPIO.RISING, self._OnReedClosed, bouncetime = 250)
-
-        self.debug("Waiting max %.4f seconds for reed (%r).", MAX_DOOR_MOVE_DURATION, str_dir)
-        with self._wait_condition:
-            result = self._wait_condition.wait(MAX_DOOR_MOVE_DURATION)
-        GPIO.remove_event_detect(reed_pin)
-
-        if result:
-            self.debug("Reed (%r) has been signaled with waittime.", str_dir)
-        else:
-            self.warn("Expected reed (%r) has not been signaled within %.4f seconds.", str_dir, MAX_DOOR_MOVE_DURATION)
-
-        return result
-
     def OpenDoor(self):
         self.debug("Executing OpenDoor command.")
-        return self._MoveDoor(MOVE_UP)
+        return self.SyncMoveDoor(MOVE_UP)
 
     def CloseDoor(self):
         """
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
         self.debug("Executing CloseDoor command.")
-        return self._MoveDoor(MOVE_DOWN)
+        return self.SyncMoveDoor(MOVE_DOWN)
 
     def StopDoor(self):
         """
         Hält die Tür an (insofern sie sich gerade bewegt).
         """
         self.info("Executing StopDoor command.")
-        self.StopDoor()
+        self.StopMotor()
     # -----------------------------------------------------------------------------------
     # --- Sensoren ----------------------------------------------------------------------
     # -----------------------------------------------------------------------------------

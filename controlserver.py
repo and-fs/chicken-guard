@@ -12,6 +12,7 @@ Als cronjob mit Start bei jedem Boot einrichten::
     reboot /usr/bin/python3 /usr/chickenguard/controlserver.py
 """
 # ------------------------------------------------------------------------
+import os
 import xmlrpc.server
 import socketserver
 import threading
@@ -68,6 +69,12 @@ class JobTimer(LoggableClass):
             self.terminate_condition.notify_all()
 
     def __call__(self):
+        try:
+            self._run()
+        except Exception:
+            self.exception("Error in JobTimer thread loop.")
+
+    def _run(self):
         self.info("JobTimer started.")
         open_time, close_time = sunrise.GetSuntimes(datetime.datetime.now())
         while not self.ShouldTerminate():
@@ -320,8 +327,8 @@ def main():
     Ausführung bis CTRL-C oder `kill -INT <PID>`.
     """
     logger = shared.getLogger("ControlServer")
-    address = (CONTROLLER_HOST, CONTROLLER_PORT)
-    logger.info("Starting XML-RPC-Server as %r", address)
+    address = ("", CONTROLLER_PORT)
+    logger.info("Starting XML-RPC-Server as %r, pid = %s", address, os.getpid())
     try:
         try:
             controller = Controller()
