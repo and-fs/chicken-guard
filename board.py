@@ -5,7 +5,8 @@ import threading
 import os
 import math
 import time
-from shared import LoggableClass
+import json
+from shared import LoggableClass, resource_path
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
 # ---------------------------------------------------------------------------------------
@@ -28,7 +29,7 @@ class Sensors(LoggableClass):
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
     SMBUS_CH_AIN  = 0x41    # AIN
-    SMBUS_CH_TEMP = 0x44    # Temperatur
+    SMBUS_CH_TEMP = 0x42    # Temperatur
     SMBUS_CH_POTI = 0x43    # Potentiometer-Kanal
     SMBUS_CH_AOUT = 0x44    # AOUT
 
@@ -114,6 +115,8 @@ class Board(LoggableClass):
 
         self.state_change_handler = None
 
+        self.state_file = resource_path.joinpath(BOARDFILE)
+
         GPIO.setmode(GPIO.BOARD)
         
         self.logger.debug("Settings pins %s to OUT.", OUTPUT_PINS)
@@ -124,30 +127,51 @@ class Board(LoggableClass):
 
         GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed, bouncetime = 200)
 
-        self.CheckForError(
-            not (self.IsDoorOpen() and self.IsDoorClosed()),
-            "Inconsistent door contact state, door is signaled both to be open and closed, check configuration!"
-        )
-
         self.sensor = Sensors()
+
+        self.CheckInitialState()
     # -----------------------------------------------------------------------------------
     def __del__(self):
         GPIO.cleanup()
     # -----------------------------------------------------------------------------------
-    def CheckForError(self, condition, message, *args, errorclass = RuntimeError):
-        """
-        Wenn 'condition' nicht mit 'True' evaluiert, wird über den Logger
-        ein Fehler mit dem Inhalt von 'message' substituiert durch 'args' ausgegeben.
-        Wenn RAISE_ERRORS mit 'True' konfiguriert wurde (siehe config.py),
-        wird zusätzlich eine Exception mit dem Typ 'errorclass' geworfen.
-        Gibt zurück, ob die 'condition' erfüllt ist.
-        """
-        if condition:
-            return True
-        self.error(message, *args)
-        if RAISE_ERRORS:
-            raise errorclass(message % args)
-        return False
+    def CheckInitialState(self):
+        # als ersten holen wir uns den gespeicherten Zustand
+        loaded = self.Load()
+        # dann den oberen Magnetkontakt prüfen
+        door_is_open = self.IsReedClosed(REED_UPPER)
+        # wenn der letzte Zustand geladen wurde UND der obere Magnetkontakt 
+        # nicht geschlossen ist, dann nehmen wir den gespeicherten Zustand
+        if loaded and (not door_is_open):
+            door_is_open = 0 != (self.door_state & Board.DOOR_OPEN)
+        self.door_state = Board.DOOR_OPEN if door_is_open else Board.DOOR_CLOSED
+        
+    def Save(self):
+        try:
+            with self.state_file.open('w') as f:
+                json.dump({
+                    'door_state': self.door_state,
+                    'light_indoor': self.light_state_indoor,
+                    'light_outdoor': self.light_state_outdoor,
+                }, f)
+        except Exception:
+            self.exception("Error while saving state file.")
+            return False
+        return True
+
+    def Load(self):
+        if not self.state_file.exists():
+            return False
+
+        try:
+            with self.state_file.open('r') as f:
+                data = json.load(f)
+        except Exception:
+            self.exception("Error while loading state file.")
+            return False
+
+        for name, value in data.items():
+            setattr(self, name, value)
+        return True
     # -----------------------------------------------------------------------------------
     def OnShutdownButtonPressed(self, *args):
         #: TODO: es kann sein, dass das nicht funktioniert, weil der Controller nicht
@@ -189,7 +213,7 @@ class Board(LoggableClass):
         if self.door_state == new_state:
             return
         self.door_state = new_state
-        #self.CallStateChangeHandler()
+        self.CallStateChangeHandler()
     # -----------------------------------------------------------------------------------
     def StartMotor(self, direction):
         self.info("Starting motor (%s).", "up" if direction == MOVE_UP else "down")
@@ -203,7 +227,7 @@ class Board(LoggableClass):
         GPIO.output(MOVE_DIR, MOVE_UP)
         self.SetDoorState(end_state)
 
-    def SyncMoveDoor(self, direction):
+    def SyncMoveDoor(self, direction, max_duration:float = MAX_DOOR_MOVE_DURATION):
         if direction == MOVE_UP:
             str_dir = "up"
             reed_pin = REED_UPPER
@@ -213,16 +237,26 @@ class Board(LoggableClass):
             reed_pin = REED_LOWER
             end_state = Board.DOOR_CLOSED
 
-        self.debug("Moving door %s synchronized.", str_dir)
-
-        if self.door_state & Board.DOOR_MOVING:
+        can_move = not self.IsReedClosed(reed_pin)
+        if can_move:
+            # wenn der Magnetkontakt HIGH liefert, kann es sich um
+            # eine Störung halten, deshalb prüfen wir
+            # hier sicherheitshalber den gespeicherten Status
+            can_move = 0 == (self.door_state & end_state)
+        if not can_move:
+            self.error("Cannot move %s, door is already there!", str_dir)
+            return False
+ 
+        if self.IsDoorMoving():
             self.error("Cannot move door, already moving!")
             return False
+
+        self.debug("Moving door %s synchronized (max. %.2f seconds).", str_dir, max_duration)
 
         self.StartMotor(direction)
 
         # maximale Dauer der Anschaltzeit des Motor
-        move_end_time = time.time() + MAX_DOOR_MOVE_DURATION
+        move_end_time = time.time() + max_duration
 
         reed_signaled = False
         while not reed_signaled and (move_end_time > time.time()):
@@ -251,10 +285,17 @@ class Board(LoggableClass):
         return False
 
     def IsDoorOpen(self):
-        return self.IsReedClosed(REED_UPPER)
+        if not self.IsReedClosed(REED_UPPER):
+            # wenn der Magnetschalter behauptet, dass er
+            # nicht geschlossen ist, nehmen wir sicher-
+            # heitshalber den gespeicherten Zustand
+            return 0 != (self.door_state & Board.DOOR_OPEN)           
+        return True
 
     def IsDoorClosed(self):
-        return self.IsReedClosed(REED_LOWER)
+        if not self.IsReedClosed(REED_LOWER):
+            return 0 != (self.door_state & Board.DOOR_CLOSED)
+        return True  
 
     def IsDoorMoving(self):
         return 0 != (self.door_state & Board.DOOR_MOVING)
@@ -268,7 +309,7 @@ class Board(LoggableClass):
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
         self.debug("Executing CloseDoor command.")
-        return self.SyncMoveDoor(MOVE_DOWN)
+        return self.SyncMoveDoor(MOVE_DOWN, DOOR_MOVE_DOWN_TIME)
 
     def StopDoor(self):
         """
@@ -313,6 +354,7 @@ class Board(LoggableClass):
         self.state_change_handler = callable
 
     def CallStateChangeHandler(self):
+        self.Save()
         if self.state_change_handler:
             self.debug("Calling state change handler")
             try:

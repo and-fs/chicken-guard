@@ -9,7 +9,8 @@ LOGDIR = 'log'               #: Log-Verzeichnis relativ zu www (root)
 RESOURCEDIR = 'resources'    #: Resourcen-Verzeichnis relativ zu www (root)
 SCRIPTDIR = 'scripts'        #: Script-Verzeichnis relativ zu www (root)
 MAPFILE = -1                 #: Auf -1 setzen wenn Release!
-SUNSETFILE = 'sunset.data'   #: Name der Datei mit den Sonnenzeiten relativ zur 'RESOURCEDIR'
+BOARDFILE = 'board.json'     #: Name der Datei in der der Boardstatus
+                             #: gespeichert wird (relativ zur 'RESOURCEDIR')
 # ------------------------------------------------------------------------
 #: Template für die Logausgabe (siehe logging - Modul)
 LOGFORMAT = '%(asctime)s  %(name)-15s %(thread)d %(levelname)-8s %(message)s'
