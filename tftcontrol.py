@@ -49,8 +49,8 @@ class ScreenController(LoggableClass):
         self.slots = { (250,  40, 310,  85): self.doorUp,
                        (250, 105, 310, 165): self.doorStop,
                        (250, 185, 310, 230): self.doorDown,
-                       (  0, 200, 115, 240): self.switchOutdoorLight,
-                       (116, 200, 230, 240): self.switchIndoorLight,
+                       (  0, 150, 115, 240): self.switchOutdoorLight,
+                       (116, 150, 230, 240): self.switchIndoorLight,
                        (  0,  50, 230, 100): self.switchDoorAutomatic,
                      }
 
@@ -129,22 +129,31 @@ class ScreenController(LoggableClass):
         self.state = ns
 
     def onStateChanged(self, state):
-        print ("New state: ", state)
         self.setState(state)
-        print ("Door state: ", self.door_state)
         self.needsUpdate()
 
     def needsUpdate(self):
+        """
+        Triggert das Neuzeichnen des Bildschirms.
+        Wenn dieser deaktiviert ist, wird nur
+        der Zustand vermerkt, sonst neu gezeichnet.
+        """
         with self.condition:
             self._needs_update = True
             self.condition.notify_all()
 
     def switchTFT(self, switch_on = True):
+        """
+        Schaltet den Bildschirm in den mit `switch_on` angegebenen Zustand.
+        Bei "An" wird der Status des Board angefragt, um
+        eine Aktualisierung des Inhalts vorzunehmen.
+        """
         if self.tft_state == switch_on:
             return
         self.tft_state = switch_on
         if switch_on:
             self.tft.switchOn()
+            AsyncFunc("GetBoardState", callback = self.onStateChanged)()
             self.debug("Switched TFT On.")
         else:
             self.tft.switchOff()
@@ -189,16 +198,24 @@ class ScreenController(LoggableClass):
                 last_screen_update = time.time()
 
     def onTouchEvent(self, channel):
-        print("Touch event!")
+        """
+        Eventhandler für die Berührung am Bildschirm.
+        """
+        # für die "Einschlafzeit" merken wir uns den
+        # Zeitpunkt
         self.last_input = time.time()
+        # wir reagieren nur auf DOWN
         if self.tft.penDown():
+            # wenn der Bildschirm aus war, schalten
+            # wir ihn nur an und machen sonst nichts
             if not self.tft_state:
                 self.debug("Woke up display after inactivity.")
                 self.switchTFT(switch_on = True)
                 return
+            # ansonsten müssen wir die Position auswerten
+            # und den entsprechenden Handler rufen
             position = self.tft.penPosition()
             self.debug("Touch at %r", position)
-            print ("Touch at %r" % (position,))
             x, y = position
             for p, handler in self.slots.items():
                 pleft, ptop, pright, pbottom = p
@@ -211,8 +228,6 @@ class ScreenController(LoggableClass):
                 except Exception:
                     self.logger.exception("Error in touch handler.")
                 break
-        else:
-            print ("Touch up.")
 
     def doCleanup(self):
         self.debug("Cleaning up.")
@@ -228,6 +243,7 @@ class ScreenController(LoggableClass):
         self.info("Door up button pressed.")
         self.door_state = DOOR_MOVING
         AsyncFunc("OpenDoor", callback = self.OnDoorOpened)()
+        self.needsUpdate()
 
     def OnDoorClosed(self, result = None):
         self.debug("Received door close callback: door is %s.", "closed now" if result else "still open")
@@ -238,42 +254,30 @@ class ScreenController(LoggableClass):
         self.info("Door down button pressed.")
         self.door_state = DOOR_MOVING
         AsyncFunc("CloseDoor", callback = self.OnDoorClosed)()
-
-    def OnDoorStopped(self, result = None):
-        self.debug("Received door stop callback: %r", result)
-        self.door_state = DOOR_UNKNOWN
         self.needsUpdate()
 
     def doorStop(self):
         self.info("Door stop button pressed.")
-        AsyncFunc("StopDoor", callback = self.OnDoorStopped)()
-
-    def OnIndoorLightSwitched(self, result = None):
-        self.debug("Received indoor light switch callback: %r", result)
-        self.light_state_indoor = result
-        self.needsUpdate()
+        AsyncFunc("StopDoor")()
 
     def switchIndoorLight(self):
-        self.info("Switching indoor light %s", "off" if self.light_state_indoor else "on")
-        AsyncFunc("SwitchIndoorLight", callback = self.OnIndoorLightSwitched)(not self.light_state_indoor)
-
-    def OnOutdoorLightSwitched(self, result = None):
-        self.debug("Received outdoor light switch callback: %r", result)
-        self.light_state_outdoor = result
+        switch_light_on = not self.light_state_indoor
+        self.info("Switching indoor light %s", "on" if switch_light_on else "off")
+        AsyncFunc("SwitchIndoorLight")(switch_light_on)
         self.needsUpdate()
 
     def switchOutdoorLight(self):
-        self.info("Switching outdoor light %s", "off" if self.light_state_outdoor else "on")
-        AsyncFunc("SwitchOutdoorLight", callback = self.OnOutdoorLightSwitched)(not self.light_state_outdoor)
-
-    def OnDoorAutomaticSwitched(self, result):
-        self.debug("Received door automatic switch callback: %r", result)
-        self.state["automatic"] = result
+        switch_light_on = not self.light_state_outdoor
+        self.info("Switching outdoor light %s", "on" if switch_light_on else "off")
+        AsyncFunc("SwitchOutdoorLight")(switch_light_on)
         self.needsUpdate()
 
     def switchDoorAutomatic(self):
-        self.info("Switching door automatic %s", "off" if self.state["automatic"] else "on")
-        AsyncFunc("SwitchDoorAutomatic", callback = self.OnDoorAutomaticSwitched)(not self.state["automatic"])
+        switch_automatic_on = not self.state["automatic"]
+        self.info("Switching door automatic %s", "on" if not switch_automatic_on else "off")
+        self.state["automatic"] = switch_automatic_on
+        AsyncFunc("SwitchDoorAutomatic")(switch_automatic_on)
+        self.needsUpdate()
 
     def drawScreen(self):
         draw = self.tft.draw()
@@ -300,10 +304,11 @@ class ScreenController(LoggableClass):
             draw.rectangle([(0, 50), (230, 100)], fill = "#800000")
 
         # Trennlinien
-        draw.line((0, 50, 230, 50), fill = "gray", width = 3)
-        draw.line((0, 100, 230, 100), fill = "gray", width = 3)
-        draw.line((0, 150, 230, 150), fill = "gray", width = 3)
-        draw.line((115, 100, 115, 240), fill = "gray", width = 3)
+
+        draw.line((  0, 50, 230, 50),   fill = "gray", width = 3) # unter Datum / Zeit
+        draw.line((  0, 100, 230, 100), fill = "gray", width = 3) # unter Demnächst / manuell
+        draw.line((  0, 150, 230, 150), fill = "gray", width = 3) # unter Temperatur / Licht
+        draw.line((115, 100, 115, 240), fill = "gray", width = 3) # vertikaler Teiler (ab unter Demnächst / manuell)
 
         # Info - Texte
         dt = datetime.now().strftime("%d.%m.%y %H:%M")
@@ -319,32 +324,16 @@ class ScreenController(LoggableClass):
         draw.text((  120,  103), "Lichtsensor:", font = self.FONT, fill = "yellow")
         draw.text((  130,  120), self.state["light_sensor"], font = self.FONT_BIG, fill = "white", align = "right")
 
-        draw.text((   5,  153), "Tür:", font = self.FONT, fill = "yellow")
-
-        if self.door_state == DOOR_OPEN:
-            txt = "offen"
-        elif self.door_state == DOOR_CLOSED:
-            txt = "zu"
-        else:
-            txt = "???"
-
-        draw.text((  10,  170), txt, font = self.FONT_BIG, fill = "white", align = "right")
-
-        draw.text((  120,  153), "Licht:", font = self.FONT, fill = "yellow")
-        draw.text((  130,  170), "todo", font = self.FONT_BIG, fill = "white", align = "right")
-
-        # unterer Rand (Licht)
-        draw.line((0, 200, 230, 200), fill = "gray", width = 3)
-
         if self.light_state_indoor and self.light_state_outdoor:
-            draw.rectangle([(0, 201), (229, 240)], fill = "#A0A000")
+            draw.rectangle([(  0, 151), (229, 240)], fill = "#A0A000")
         elif self.light_state_outdoor:
-            draw.rectangle([(0, 201), (113, 240)], fill = "#A0A000")
+            draw.rectangle([(  0, 151), (113, 240)], fill = "#A0A000")
         elif self.light_state_indoor:
-            draw.rectangle([(117, 201), (229, 240)], fill = "#A0A000")
+            draw.rectangle([(117, 151), (229, 240)], fill = "#A0A000")
 
-        draw.bitmap(( 40, 204), self.BULB) # außen
-        draw.bitmap(( 157, 204), self.BULB) # innen
+        draw.bitmap((  40, 185), self.BULB) # außen
+        draw.bitmap(( 157, 185), self.BULB) # innen
+
         try:
             self.tft.display()
         except Exception:

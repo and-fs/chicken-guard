@@ -108,7 +108,7 @@ class JobTimer(LoggableClass):
                     action = sunrise.GetDoorAction(dtnow, open_time, close_time)
                     if action == DOOR_CLOSED:
                         if not self.controller.IsDoorClosed():
-                            self.info("Closing door, currently is after night.")
+                            self.info("Closing door, currently is night.")
                             self.controller._CloseDoorFromTimer()
                     else:
                         # wir sind nach Sonnenauf- aber vor Sonnenuntergang

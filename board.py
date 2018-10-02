@@ -150,8 +150,8 @@ class Board(LoggableClass):
             with self.state_file.open('w') as f:
                 json.dump({
                     'door_state': self.door_state,
-                    'light_indoor': self.light_state_indoor,
-                    'light_outdoor': self.light_state_outdoor,
+                    'light_state_indoor': self.light_state_indoor,
+                    'light_state_outdoor': self.light_state_outdoor,
                 }, f)
         except Exception:
             self.exception("Error while saving state file.")
@@ -170,8 +170,10 @@ class Board(LoggableClass):
             self.exception("Error while loading state file.")
             return False
 
-        for name, value in data.items():
-            setattr(self, name, value)
+        # wir laden nur den Türstatus, da die Lichtrelais immer aus sind,
+        # wenn neu gestartet wurde.
+        self.door_state = data.get('door_state', Board.DOOR_NOT_MOVING)
+
         self.debug("Loaded state.")
         return True
     # -----------------------------------------------------------------------------------
