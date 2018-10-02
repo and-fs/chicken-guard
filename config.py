@@ -98,17 +98,17 @@ TFT_SLEEP_TIMEOUT = 30
 #: (in Sekunden)
 SUNRISE_INTERVAL = 7000
 
-#: Prüfintervall für den Türstatus (Öffnen / Schließen)
+#: Prüfintervall des Türstatus (Öffnen / Schließen) in Sekunden
 DOORCHECK_INTERVAL = 60
 
 #: Dauer in Sekunden die die Türautomatik bei manueller Bedienung deaktiviert
 #: wird.
 DOOR_AUTOMATIC_OFFTIME = 30 * 60
 
-#: Anzahl Minuten nach Sonnenaufgang, in der die Tür geöffnet wird
-DAWN_OFFSET = 0
+#: Anzahl Sekunden nach Sonnenaufgang, in der die Tür geöffnet wird
+DAWN_OFFSET = -30 * 60
 
-#: Anzahl Minuten nach Sonnenuntergang, in der die Tür geschlossen wird.
+#: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
 DUSK_OFFSET = 30 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür

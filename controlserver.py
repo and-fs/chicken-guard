@@ -59,6 +59,7 @@ class JobTimer(LoggableClass):
             return self.terminate
 
     def WakeUp(self):
+        self.debug("WakeUp called.")
         with self.terminate_condition:
             self.terminate_condition.notify_all()
 
@@ -108,17 +109,18 @@ class JobTimer(LoggableClass):
                     if action == DOOR_CLOSED:
                         if not self.controller.IsDoorClosed():
                             self.info("Closing door, currently is after night.")
-                            self.controller.CloseDoor(True)
+                            self.controller._CloseDoorFromTimer()
                     else:
                         # wir sind nach Sonnenauf- aber vor Sonnenuntergang
                         if not self.controller.IsDoorOpen():
                             self.info("Opening door, currently is day.")
-                            self.controller.OpenDoor(True)
+                            self.controller._OpenDoorFromTimer()
             else:
                 self.logger.debug("Skipped door check, automatic is off.")
 
             with self.terminate_condition:
-                self.terminate_condition.wait(DOORCHECK_INTERVAL)
+                if self.terminate_condition.wait(DOORCHECK_INTERVAL):
+                    self.debug("Terminate condition is notified.")
 
         # falls jetzt noch jemand im Join hängt, wird der auch benachrichtigt.
         with self.terminate_condition:
@@ -176,42 +178,31 @@ class Controller(LoggableClass):
     def IsOutdoorLightOn(self) -> bool:
         return self.board.IsOutdoorLightOn()
 
-    def CloseDoor(self, from_timer:bool = False) -> bool:
+    def _CloseDoorFromTimer(self):
+        self.info("Timer requests door to close.")
+        return self.board.CloseDoor()
+
+    def _OpenDoorFromTimer(self):
+        self.info("Timer requests door to open.")
+        return self.board.OpenDoor()
+
+    def CloseDoor(self) -> bool:
         """
         Schickt das Kommando zum Schließen der Tür an den ControlServer.
-        `from_timer` wird vom JobTimer gesetzt um zu signalisieren,
-        dass der Aufruf nicht manuell durchgeführt wurde (z.Bsp. über
-        das TFT oder WebFrontend).
-        Bei manueller Ausführung wird mit DisableAutomatic() die
+        Mit DisableAutomatic() wird die
         Automatik vorübergehend deaktiviert.        
         """
-        if from_timer:
-            self.info("Timer requests door to close.")
-            self.board.SyncMoveDoor(MOVE_DOWN)
-            return True
         self.info("Received CloseDoor request.")
-        # bei einer manuellen Aktion schalten wir die
-        # Automatik durch den Timer vorübergehend ab.
         self.DisableAutomatic()
         return self.board.CloseDoor()
 
-    def OpenDoor(self, from_timer:bool = False) -> bool:
+    def OpenDoor(self) -> bool:
         """
         Schickt das Kommando zum Öffnen der Tür an den ControlServer.
-        `from_timer` wird vom JobTimer gesetzt um zu signalisieren,
-        dass der Aufruf nicht manuell durchgeführt wurde (z.Bsp. über
-        das TFT oder WebFrontend).
-        Bei manueller Ausführung wird mit DisableAutomatic() die
+        Mit DisableAutomatic() wird die
         Automatik vorübergehend deaktiviert.
         """
-        if from_timer:
-            self.info("Timer requests door to open.")
-            self.board.SyncMoveDoor(MOVE_UP)
-            return True
-
         self.info("Received OpenDoor request.")
-        # bei einer manuellen Aktion schalten wir die
-        # Automatik durch den Timer vorübergehend ab.
         self.DisableAutomatic()
         return self.board.OpenDoor()
 

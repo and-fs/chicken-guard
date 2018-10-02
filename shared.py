@@ -19,7 +19,7 @@ resource_path = root_path.joinpath(RESOURCEDIR)
 logging_configured = False
 """Guard für die Ausführung von configureLogging"""
 # ------------------------------------------------------------------------
-def configureLogging(name, filemode = 'w'):
+def configureLogging(name, filemode = 'a'):
     """
     Führt eine Basiskonfiguration des logging durch.
     Verwendet LOGFORMAT, LOGDATEFMT und LOGLEVEL aus config.
