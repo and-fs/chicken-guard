@@ -156,6 +156,7 @@ class Board(LoggableClass):
         except Exception:
             self.exception("Error while saving state file.")
             return False
+        self.debug("Saved state.")
         return True
 
     def Load(self):
@@ -171,6 +172,7 @@ class Board(LoggableClass):
 
         for name, value in data.items():
             setattr(self, name, value)
+        self.debug("Loaded state.")
         return True
     # -----------------------------------------------------------------------------------
     def OnShutdownButtonPressed(self, *args):
