@@ -3,6 +3,7 @@
 # ------------------------------------------------------------------------
 import pathlib
 import logging
+from logging import handlers
 import os
 # ------------------------------------------------------------------------
 from config import * # pylint: disable=W0614
@@ -49,17 +50,15 @@ def configureLogging(name, filemode = 'a'):
             f.write('-' * 80)
             f.write(os.linesep)
 
-    logging.basicConfig(
-        filename = str(logfilepath),
-        filemode = filemode,
-        format = LOGFORMAT,
-        datefmt = LOGDATEFMT,
-        level = LOGLEVEL
-    )
-
-    logging.info("Started.")
+    formatter = logging.Formatter(LOGFORMAT, LOGDATEFMT)
+    handler = handlers.TimedRotatingFileHandler(str(logfilepath), when = 'D', interval = 1, backupCount = 5)
+    handler.setFormatter(formatter)
+    logger = logging.getLogger()
+    logger.setLevel(LOGLEVEL)
+    logger.addHandler(handler)
+    logger.info("Started.")
 # ------------------------------------------------------------------------
-def getLogger(name = None, filemode = 'w'):
+def getLogger(name = None, filemode = 'a'):
     """
     Liefert eine Logger-Instanz.
     Ruft zuerst immer configureLogging mit `name` und `filemode` auf,
