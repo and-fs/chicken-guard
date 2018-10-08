@@ -309,12 +309,12 @@ class ScreenController(LoggableClass):
         # Untermalung "Demnächst" (Automatic-Button)
         automatic = self.state.get("automatic", 0)
 
-        if automatic == 0:
-            color = "#008000"
-        elif automatic == -1:
+        if automatic == 0:    # deaktiviert, geht nach 30min wieder an (gelb)
+            color = "#808000"
+        elif automatic == -1: # deaktiviert (rot)
             color = "#800000"
         else:
-            color = "yellow"
+            color = "#008000" # aktiviert (grün)
 
         draw.rectangle([(0, 50), (230, 100)], fill = color)
 
@@ -330,8 +330,8 @@ class ScreenController(LoggableClass):
         draw.text((   5,   3), "Zeit:", font = self.FONT, fill = "yellow")
         draw.text((  10,  20), dt, font = self.FONT_BIG, fill = "white", align = "right")
 
-        draw.text((   5,   53), "Demnächst:", font = self.FONT, fill = "yellow")
-        draw.text((  10,   70), self.state["next_action"], font = self.FONT_BIG, fill = "white", align = "right")
+        draw.text((   5,   53), "Demnächst:", font = self.FONT, fill = "black")
+        draw.text((  10,   70), self.state["next_action"], font = self.FONT_BIG, fill = "black", align = "right")
 
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
         draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
