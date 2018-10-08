@@ -174,7 +174,7 @@ class Board(LoggableClass):
         # wenn neu gestartet wurde.
         self.door_state = data.get('door_state', Board.DOOR_NOT_MOVING)
 
-        self.debug("Loaded state.")
+        self.info("Loaded state: %s", data)
         return True
     # -----------------------------------------------------------------------------------
     def OnShutdownButtonPressed(self, *args):
