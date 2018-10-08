@@ -93,14 +93,14 @@ class JobTimer(LoggableClass):
                 self.controller.SetNextActions(next_steps)
                 self.last_sunrise_check = now
 
-            if not self.controller.automatic:
+            if self.controller.automatic == 0:
                 # wenn am controller die Automatik deaktiviert ist,
                 # müssen wir prüfen, ob diese wieder angeschaltet werden muss
                 if self.controller.automatic_enable_time <= now:
                     self.info("Enabling door automatic due to reaching manual control timeout.")
                     self.controller.EnableAutomatic()
 
-            if self.controller.automatic:
+            if self.controller.automatic > 0:
                 # müssen wir die Tür öffnen / schließen?
                 if self.last_door_check + DOORCHECK_INTERVAL < now:
                     self.logger.debug("Doing door automatic check.")
@@ -143,7 +143,8 @@ class Controller(LoggableClass):
 
         #: Gibt an, ob die Tür über die Automatic gesteuert wird
         #: oder manuell. Wird vom job_timer verwendet.
-        self.automatic = True
+        #: 1 = Automatik an, 0 = Automatik auf begrenzte Zeit aus, -1 = Automatik aus
+        self.automatic = 1
 
         self._state_lock = threading.Lock()
         self._state = (False, self.board.GetState())
@@ -215,6 +216,7 @@ class Controller(LoggableClass):
         """
         self.debug("Received StopDoor request.")
         self.board.StopDoor()
+        self.DisableAutomatic()
 
     def IsDoorOpen(self) -> bool:
         return self.board.IsDoorOpen()
@@ -222,12 +224,12 @@ class Controller(LoggableClass):
     def IsDoorClosed(self) -> bool:
         return self.board.IsDoorClosed()
 
-    def SwitchDoorAutomatic(self, auto_on:bool) -> bool:
-        self.debug("Switching door automatic %s.", "on" if auto_on else "off")
-        if auto_on:
+    def SwitchDoorAutomatic(self, new_state:int) -> bool:
+        self.debug("Switching door automatic to %d.", new_state)
+        if new_state == 1:
             self.EnableAutomatic()
         else:
-            self.DisableAutomatic()
+            self.DisableAutomatic(new_state == -1)
         return self.automatic
 
     def GetBoardState(self) -> dict:
@@ -265,23 +267,33 @@ class Controller(LoggableClass):
                 return (dt, action)
         return (None, None)
 
-    def DisableAutomatic(self):
+    def DisableAutomatic(self, forever = False):
         """
         Deaktiviert die Tür-Automatik für die in DOOR_AUTOMATIC_OFFTIME
         gesetzte Anzahl von Sekunden.
         """
-        self.automatic = False
-        self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
-        self.info("Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME))
+        if self.automatic == -1:
+            return
+
+        if forever:
+            self.automatic = -1
+            self.info("Door automatic disabled.")
+        else:
+            # nur wenn die Automatik nicht bereits dauerhaft deaktiviert war,
+            # stellen wir hier eine zeitbegrenzte Automatik ein
+            self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
+            self.automatic = 0
+            self.info("Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME))
+
         self._UpdateBoardState()
 
     def EnableAutomatic(self):
         """
         Aktiviert die Türautomatik (wieder).
         """
-        if self.automatic:
+        if self.automatic == 1:
             return
-        self.automatic = True
+        self.automatic = 1
         self.automatic_enable_time = -1
         self.info("Door automatic has been enabled.")
         self._UpdateBoardState()

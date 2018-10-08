@@ -78,7 +78,8 @@ class ScreenController(LoggableClass):
         self.info("Finished.")
 
     def GetNextActionText(self, state):
-        if state.get("automatic", "True"):
+        automatic = state.get("automatic", 1)
+        if automatic == 1:
             now = datetime.now()
             for dt, action in state.get("next_actions", []):
                 if now < dt:
@@ -123,7 +124,7 @@ class ScreenController(LoggableClass):
             "temperature": tstr,
             "light_sensor": lstr,
             "next_action": self.GetNextActionText(state),
-            "automatic": state.get("automatic", True),
+            "automatic": state.get("automatic", 1),
         }
 
         self.state = ns
@@ -261,24 +262,30 @@ class ScreenController(LoggableClass):
         AsyncFunc("StopDoor")()
 
     def switchIndoorLight(self):
-        switch_light_on = not self.light_state_indoor
-        self.light_state_indoor = switch_light_on
+        self.light_state_indoor = switch_light_on = not self.light_state_indoor
         self.info("Switching indoor light %s", "on" if switch_light_on else "off")
         AsyncFunc("SwitchIndoorLight")(switch_light_on)
         self.needsUpdate()
 
     def switchOutdoorLight(self):
-        switch_light_on = not self.light_state_outdoor
-        self.light_state_outdoor = switch_light_on
+        self.light_state_outdoor = switch_light_on = not self.light_state_outdoor
         self.info("Switching outdoor light %s", "on" if switch_light_on else "off")
         AsyncFunc("SwitchOutdoorLight")(switch_light_on)
         self.needsUpdate()
 
     def switchDoorAutomatic(self):
-        switch_automatic_on = not self.state["automatic"]
-        self.info("Switching door automatic %s", "on" if not switch_automatic_on else "off")
-        self.state["automatic"] = switch_automatic_on
-        AsyncFunc("SwitchDoorAutomatic")(switch_automatic_on)
+        automatic = self.state["automatic"]
+        if automatic == 1:
+            self.info("Switching door automatic off (yellow).")
+            automatic = 0
+        elif automatic == 0:
+            self.info("Switching door automatic off (red).")
+            automatic = -1
+        else:
+            self.info("Switching door automatic on.")
+            automatic = 1
+        self.state["automatic"] = automatic
+        AsyncFunc("SwitchDoorAutomatic")(automatic)
         self.needsUpdate()
 
     def drawScreen(self):
@@ -300,10 +307,16 @@ class ScreenController(LoggableClass):
         draw.rectangle([(250, 105), (310, 165)], outline = "white", fill = "gray")
 
         # Untermalung "Demnächst" (Automatic-Button)
-        if self.state.get("automatic", True):
-            draw.rectangle([(0, 50), (230, 100)], fill = "#008000")
+        automatic = self.state.get("automatic", 0)
+
+        if automatic == 0:
+            color = "#008000"
+        elif automatic == -1:
+            color = "#800000"
         else:
-            draw.rectangle([(0, 50), (230, 100)], fill = "#800000")
+            color = "yellow"
+
+        draw.rectangle([(0, 50), (230, 100)], fill = color)
 
         # Trennlinien
 
