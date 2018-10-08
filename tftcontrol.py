@@ -262,12 +262,14 @@ class ScreenController(LoggableClass):
 
     def switchIndoorLight(self):
         switch_light_on = not self.light_state_indoor
+        self.light_state_indoor = switch_light_on
         self.info("Switching indoor light %s", "on" if switch_light_on else "off")
         AsyncFunc("SwitchIndoorLight")(switch_light_on)
         self.needsUpdate()
 
     def switchOutdoorLight(self):
         switch_light_on = not self.light_state_outdoor
+        self.light_state_outdoor = switch_light_on
         self.info("Switching outdoor light %s", "on" if switch_light_on else "off")
         AsyncFunc("SwitchOutdoorLight")(switch_light_on)
         self.needsUpdate()
