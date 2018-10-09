@@ -2,6 +2,7 @@
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------
 from base import * # pylint: disable=W0614
+from config import *  # pylint: disable=W0614
 import time
 import controlserver
 # ---------------------------------------------------------------------------------------
@@ -9,7 +10,7 @@ class ControllerDummy(object):
     def __init__(self):
         self.door_closed = False
         self.actions = []
-        self.automatic = True
+        self.automatic = DOOR_AUTO_ON
         self.automatic_enable_time = -1
     def IsDoorClosed(self):
         return self.door_closed
@@ -22,7 +23,7 @@ class ControllerDummy(object):
     def SetNextActions(self, actions):
         self.actions = actions
     def EnableAutomatic(self):
-        self.automatic = True
+        self.automatic = DOOR_AUTO_ON
         self.automatic_enable_time = -1
 # ---------------------------------------------------------------------------------------
 @testfunction
@@ -58,7 +59,7 @@ def test():
     check(timer.last_sunrise_check != 0, "Sunrise check has been done.")
     check(len(controller.actions) == 2, "Actions have been calculated (2).")
 
-    controller.automatic = False
+    controller.automatic = DOOR_AUTO_OFF
     controller.automatic_enable_time = time.time() + 1.0
     logger.info("Disabling automatic, enable time set to %s", controller.automatic_enable_time)
     timer.ResetCheckTimes()
@@ -74,9 +75,28 @@ def test():
     timer.Join(0.2) 
     
     logger.info("Checking automatic state at %s", time.time())
-    check(controller.automatic, "Door automatic is reenabled.")
+    check(controller.automatic == DOOR_AUTO_ON, "Door automatic is reenabled.")
     check(timer.last_door_check > 0, "Door check done after reenabling automatic.")
 
+    controller.automatic = DOOR_AUTO_DEACTIVATED
+    timer.ResetCheckTimes()
+    timer.Join(0.1)
+    controller.automatic_enable_time = time.time() + 1.0
+    logger.info("Disabling automatic (permanently), enable time set to %s", controller.automatic_enable_time)
+    timer.ResetCheckTimes()
+    timer.Join(0.1)
+    check(timer.last_door_check == 0, "Door check skipped when automatic is off (permanently).")
+
+    logger.info("Resetted check times, joining timer for 1.5 seconds.")
+    # jetzt müssen wir warten, bis die gesetzte Aktivierungszeit erreicht wurde
+    timer.Join(1.5) 
+    # danach sorgen wir dafür, dass wieder ein Durchlauf stattfindet
+    timer.ResetCheckTimes()
+    # und dem Thread nochmal kurz Zeit geben, etwas zu tun
+    timer.Join(0.2) 
+    
+    logger.info("Checking automatic state at %s", time.time())
+    check(controller.automatic == DOOR_AUTO_DEACTIVATED, "Door automatic is still disabled.")
 
     timer.Terminate()
     check(timer.ShouldTerminate(), "Termination flag is set.")

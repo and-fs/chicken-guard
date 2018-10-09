@@ -24,7 +24,7 @@ def test():
         motor_on = GPIO.input(MOTOR_ON)
         move_dir = GPIO.input(MOVE_DIR)
     check(motor_on == RELAIS_OFF, "Motor relais is off after stop.")
-    check(move_dir == MOVE_DOWN, "Moving direction is resetted after stop.")
+    check(move_dir == MOVE_UP, "Moving direction is resetted after stop.")
     check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after stop.")
 
     f = Future(c.OpenDoor)
@@ -49,16 +49,16 @@ def test():
 
     # --- Tür schließen ---
     res = c.CloseDoor()
-    check(res == False, "Close door expectedly reached timeout.")
+    check(res, "Door closed.")
 
-    # Auch hoer müssen wir die Bewegung "stoppen", da sonst der nächste
+    # Auch hier müssen wir die Bewegung "stoppen", da sonst der nächste
     # Schritt fehlschlägt
     c.StopDoor()
     with GPIO.write_context():
         motor_on = GPIO.input(MOTOR_ON)
         move_dir = GPIO.input(MOVE_DIR)
     check(motor_on == RELAIS_OFF, "Motor relais is off after stop.")
-    check(move_dir == MOVE_DOWN, "Moving direction is resetted after stop.")
+    check(move_dir == MOVE_UP, "Moving direction is resetted after stop.")
     check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after stop.")
 
     f = Future(c.CloseDoor)

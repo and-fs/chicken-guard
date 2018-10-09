@@ -97,17 +97,10 @@ class Board(LoggableClass):
     Bildet die wesentliche Steuerung am Board ab.
     """
 
-    DOOR_NOT_MOVING = 0
-    DOOR_MOVING_UP = 1
-    DOOR_MOVING_DOWN = 2
-    DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN
-    DOOR_OPEN = 4
-    DOOR_CLOSED = 8
-
     def __init__(self):
         LoggableClass.__init__(self, name = "Board")
         
-        self.door_state = Board.DOOR_NOT_MOVING
+        self.door_state = DOOR_NOT_MOVING
         self.light_state_indoor = False
         self.light_state_outdoor = False
 
@@ -142,8 +135,8 @@ class Board(LoggableClass):
         # wenn der letzte Zustand geladen wurde UND der obere Magnetkontakt 
         # nicht geschlossen ist, dann nehmen wir den gespeicherten Zustand
         if loaded and (not door_is_open):
-            door_is_open = 0 != (self.door_state & Board.DOOR_OPEN)
-        self.door_state = Board.DOOR_OPEN if door_is_open else Board.DOOR_CLOSED
+            door_is_open = 0 != (self.door_state & DOOR_OPEN)
+        self.door_state = DOOR_OPEN if door_is_open else DOOR_CLOSED
         
     def Save(self):
         try:
@@ -172,7 +165,7 @@ class Board(LoggableClass):
 
         # wir laden nur den Türstatus, da die Lichtrelais immer aus sind,
         # wenn neu gestartet wurde.
-        self.door_state = data.get('door_state', Board.DOOR_NOT_MOVING)
+        self.door_state = data.get('door_state', DOOR_NOT_MOVING)
 
         self.info("Loaded state: %s", data)
         return True
@@ -223,7 +216,7 @@ class Board(LoggableClass):
         self.info("Starting motor (%s).", "up" if direction == MOVE_UP else "down")
         GPIO.output(MOVE_DIR, direction)
         GPIO.output(MOTOR_ON, RELAIS_ON)
-        self.SetDoorState(Board.DOOR_MOVING_UP if direction == MOVE_UP else Board.DOOR_MOVING_DOWN)
+        self.SetDoorState(DOOR_MOVING_UP if direction == MOVE_UP else DOOR_MOVING_DOWN)
 
     def StopMotor(self, end_state = DOOR_NOT_MOVING):
         self.info("Stopping motor.")
@@ -235,11 +228,11 @@ class Board(LoggableClass):
         if direction == MOVE_UP:
             str_dir = "up"
             reed_pin = REED_UPPER
-            end_state = Board.DOOR_OPEN
+            end_state = DOOR_OPEN
         else:
             str_dir = "down"
             reed_pin = REED_LOWER
-            end_state = Board.DOOR_CLOSED
+            end_state = DOOR_CLOSED
 
         can_move = not self.IsReedClosed(reed_pin)
         if can_move:
@@ -272,6 +265,7 @@ class Board(LoggableClass):
             self.warn("Reed %s not closed, reached timeout.", str_dir)
 
         self.StopMotor(end_state)
+        return True
 
     def IsReedClosed(self, reed_pin: int):
         triggered = 0
@@ -293,16 +287,16 @@ class Board(LoggableClass):
             # wenn der Magnetschalter behauptet, dass er
             # nicht geschlossen ist, nehmen wir sicher-
             # heitshalber den gespeicherten Zustand
-            return 0 != (self.door_state & Board.DOOR_OPEN)           
+            return 0 != (self.door_state & DOOR_OPEN)
         return True
 
     def IsDoorClosed(self):
         if not self.IsReedClosed(REED_LOWER):
-            return 0 != (self.door_state & Board.DOOR_CLOSED)
+            return 0 != (self.door_state & DOOR_CLOSED)
         return True  
 
     def IsDoorMoving(self):
-        return 0 != (self.door_state & Board.DOOR_MOVING)
+        return 0 != (self.door_state & DOOR_MOVING)
 
     def OpenDoor(self):
         self.debug("Executing OpenDoor command.")
@@ -350,7 +344,7 @@ class Board(LoggableClass):
         elif self.IsDoorOpen():
             result["door"] = DOOR_OPEN
         else:
-            result["door"] = DOOR_UNKNOWN
+            result["door"] = DOOR_NOT_MOVING
 
         return result
 

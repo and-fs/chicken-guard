@@ -56,11 +56,11 @@ def GetSuntimes(current_datetime):
     von current_datatime.
     """
     dawn, dusk = CalculateSunTimes(current_datetime)
+    dawn += datetime.timedelta(seconds = DAWN_OFFSET)
     hour, minute = EARLIEST_OPEN_TIMES.get(current_datetime.weekday(), (5, 30))
     eot = datetime.time(hour = hour, minute = minute)
     if eot > dawn.time():
         dawn = dawn.replace(hour = hour, minute = minute)
-    dawn += datetime.timedelta(seconds = DAWN_OFFSET)
     dusk += datetime.timedelta(seconds = DUSK_OFFSET)
     return dawn, dusk
 # ------------------------------------------------------------------------

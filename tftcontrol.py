@@ -38,7 +38,7 @@ class ScreenController(LoggableClass):
 
     def __init__(self, logger):
         LoggableClass.__init__(self, logger = logger)
-        self.door_state = "n/a"
+        self.door_state = DOOR_NOT_MOVING
         self.shutdown = False
         self._needs_update = True
         self.last_input = time.time()
@@ -92,10 +92,8 @@ class ScreenController(LoggableClass):
 
     def setState(self, state):
         # moving_up, closed, open, moving_down
-        self.door_state = state.get("door", "n/a")
-        #self.light_state_indoor = state.get("indoor_light", False)
-        #self.light_state_outdoor = state.get("outdoor_light", False)
-        
+        self.door_state = state.get("door", DOOR_NOT_MOVING)
+       
         try:
             tstr = "%2.f°C" % (state["temperature"],)
         except KeyError:
@@ -242,7 +240,7 @@ class ScreenController(LoggableClass):
 
     def doorUp(self):
         self.info("Door up button pressed.")
-        self.door_state = DOOR_MOVING
+        self.door_state = DOOR_MOVING_UP
         AsyncFunc("OpenDoor", callback = self.OnDoorOpened)()
         self.needsUpdate()
 
@@ -253,7 +251,7 @@ class ScreenController(LoggableClass):
 
     def doorDown(self):
         self.info("Door down button pressed.")
-        self.door_state = DOOR_MOVING
+        self.door_state = DOOR_MOVING_DOWN
         AsyncFunc("CloseDoor", callback = self.OnDoorClosed)()
         self.needsUpdate()
 
@@ -295,7 +293,7 @@ class ScreenController(LoggableClass):
         draw.text((265,  5), "TÜR", font = self.FONT, fill = "white")
         draw.line((230, 0, 230, 240), fill = "gray", width = 3)
 
-        if self.door_state != DOOR_MOVING:
+        if 0 == (self.door_state & DOOR_MOVING):
             if self.door_state != DOOR_OPEN:
                 # oberes Dreieck (Öffnen, nur wenn nicht offen.)
                 draw.polygon([(250, 85), (280, 40), (310, 85)], outline = "white", fill = "gray")

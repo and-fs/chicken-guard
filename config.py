@@ -106,6 +106,10 @@ DOORCHECK_INTERVAL = 60
 #: wird.
 DOOR_AUTOMATIC_OFFTIME = 30 * 60
 
+DOOR_AUTO_OFF = 0               #: Türautomatik vorübergehend deaktiviert
+DOOR_AUTO_ON = 1                #: Türautomatik aktiv
+DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
+
 #: Anzahl Sekunden nach Sonnenaufgang, in der die Tür geöffnet wird
 DAWN_OFFSET = -30 * 60
 
@@ -123,10 +127,14 @@ EARLIEST_OPEN_TIMES = {
     6: (7, 30), # Sonntag
 }
 # ------------------------------------------------------------------------
-DOOR_OPEN = "open"
-DOOR_CLOSED = "closed"
-DOOR_MOVING = "moving"
-DOOR_UNKNOWN = "n/a"
-
-DOOR_MOVE_UP_TIME = 7.3
-DOOR_MOVE_DOWN_TIME = 6.0
+#: Tür Stati.
+DOOR_NOT_MOVING = 0    #: Initialstatus, eigentlich "unknown"
+DOOR_MOVING_UP = 1     #: Bewegung nach oben (Tür öffnet sich)
+DOOR_MOVING_DOWN = 2   #: Bewegung nach unten (Tür schließt sich)
+DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN #: Tür in Bewegung
+DOOR_OPEN = 4          #: Tür ist offen
+DOOR_CLOSED = 8        #: Tür ist geschlossen
+# ------------------------------------------------------------------------
+DOOR_MOVE_UP_TIME = 7.3    #: Maximale Zeit die die Tür zum Öffnen benötigt
+DOOR_MOVE_DOWN_TIME = 6.0  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+# ------------------------------------------------------------------------
