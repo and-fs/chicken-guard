@@ -138,3 +138,14 @@ DOOR_CLOSED = 8        #: Tür ist geschlossen
 DOOR_MOVE_UP_TIME = 7.3    #: Maximale Zeit die die Tür zum Öffnen benötigt
 DOOR_MOVE_DOWN_TIME = 6.0  #: Maximale Zeit zum Schließen der Tür (Sekunden)
 # ------------------------------------------------------------------------
+CAM_WIDTH = 640    #: Breite des gestreamten Kamerabildes
+CAM_HEIGHT = 480   #: Höhe des gestreamten Kamerabildes
+CAM_FRAMERATE = 10 #: Bildrate
+CAM_PORT = 8000    #: Port des Kameraservers
+
+#: Maximale Zeit, die ein Stream offengehalten wird (in Sekunden)
+MAX_STREAM_TIME = 1 * 60
+
+#: Maximale Anzahl paralleler Streams
+MAX_STREAM_COUNT = 3
+# ------------------------------------------------------------------------
