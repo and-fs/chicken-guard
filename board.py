@@ -13,7 +13,9 @@ from config import * # pylint: disable=W0614
 def analogToCelsius(analog_value):
     """
     Rechnet den vom Thermistor des PCF8591 gelieferten Analogwert in Grad Celsius um.
+    Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben.
     """
+    return float(analog_value)
     nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
     material_constant = 1100.0 # Materialkonstante des Thermistor aus dem Datenblatt
     calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
@@ -329,12 +331,9 @@ class Board(LoggableClass):
         Liefert den aktuellen Status des Board zurück.
         Dieser wird als Dictionary geliefert.
         """
-
         result = {
-            "temperature": self.GetTemperature(),
-            "indoor_light": self.IsIndoorLightOn(),
-            "outdoor_light": self.IsOutdoorLightOn(),
-            "light_sensor": self.GetLight(),
+            "indoor_light": self.light_state_indoor,
+            "outdoor_light": self.light_state_outdoor,
         }
 
         if self.IsDoorMoving():

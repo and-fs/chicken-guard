@@ -51,12 +51,12 @@ def configureLogging(name, filemode = 'a'):
             f.write(os.linesep)
 
     formatter = logging.Formatter(LOGFORMAT, LOGDATEFMT)
-    handler = handlers.TimedRotatingFileHandler(str(logfilepath), when = 'D', interval = 1, backupCount = 5)
+    handler = handlers.TimedRotatingFileHandler(str(logfilepath), when = 'd', interval = 1, backupCount = 5)
     handler.setFormatter(formatter)
     logger = logging.getLogger()
     logger.setLevel(LOGLEVEL)
     logger.addHandler(handler)
-    logger.info("Started.")
+    logger.info("Started, pid = %s.", os.getpid())
 # ------------------------------------------------------------------------
 def getLogger(name = None, filemode = 'a'):
     """

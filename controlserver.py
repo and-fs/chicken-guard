@@ -22,7 +22,7 @@ import datetime
 import shared
 import board
 import sunrise
-from shared import LoggableClass
+from shared import LoggableClass, resource_path
 from config import * # pylint: disable=W0614
 # ------------------------------------------------------------------------
 class JobTimer(LoggableClass):
@@ -34,6 +34,7 @@ class JobTimer(LoggableClass):
         self.thread = threading.Thread(target = self, name = 'JobTimer', daemon = True)
         self.last_sunrise_check = 0
         self.last_door_check = 0
+        self.next_sensor_check = 0
 
     def Terminate(self):
         self.info("Terminating JobTimer.")
@@ -118,6 +119,11 @@ class JobTimer(LoggableClass):
             else:
                 self.logger.debug("Skipped door check, automatic is off.")
 
+            # Sensoren auslesen
+            if self.next_sensor_check < now:
+                self.next_sensor_check = now + SENSOR_INTERVALL
+                self.controller._ReadSensors()
+
             if self.ShouldTerminate():
                 break
 
@@ -146,13 +152,22 @@ class Controller(LoggableClass):
 
         #: Gibt an, ob die Tür über die Automatic gesteuert wird
         #: oder manuell. Wird vom job_timer verwendet.
-        #: 1 = Automatik an, 0 = Automatik auf begrenzte Zeit aus, -1 = Automatik aus
         self.automatic = DOOR_AUTO_ON
+
+        #: Zeitpunkt an dem die Türautomatik wieder aktiviert wird, wenn
+        #: der Türstatur DOOR_AUTO_OFF ist.
+        self.automatic_enable_time = -1
 
         self._state_lock = threading.Lock()
         self._state = (False, self.board.GetState())
         self._state_cond = threading.Condition(self._state_lock)
+
+        self.temperature = 0.0
+        self.light_sensor = 0
+        self.sensor_file = resource_path / SENSORFILE
+
         self.board.SetStateChangeHandler(self._BoardStateChanged)
+
         self.job_timer = JobTimer(self)
         self.job_timer.Start()
 
@@ -235,21 +250,41 @@ class Controller(LoggableClass):
             self.DisableAutomatic(new_state == -1)
         return self.automatic
 
+    def _AddStateInfo(self, state: dict):
+        state.update(
+            next_actions = self.next_actions,
+            automatic = self.automatic,
+            automatic_enable_time = self.automatic_enable_time,
+            temperature = self.temperature,
+            light_sensor = self.light_sensor
+        )
+
     def GetBoardState(self) -> dict:
         self.debug("Received state request.")
         state = self.board.GetState()
-        state['next_actions'] = self.next_actions
-        state['automatic'] = self.automatic
+        self._AddStateInfo(state)
         return state
 
     def _UpdateBoardState(self):
-        with self._state_lock:
-            state = self._state[1].copy()
+        """
+        Wird innerhalb dieser Instanz gerufen um zu signalisieren,
+        dass sich an einem der Zustände etwas geändert hat.
+        Hierbei kann es sich nur um einen der Werte handeln, die
+        bei _AddStateInfo() hinzugefügt werden.
+        """
+        state = self.board.GetState()
         self._BoardStateChanged(state)
 
-    def _BoardStateChanged(self, state):
-        state['next_actions'] = self.next_actions
-        state['automatic'] = self.automatic
+    def _BoardStateChanged(self, state: dict):
+        """
+        Handler für Änderungen am Status des Boards.
+        Reichert den Board-Status mit Daten aus _AddStateInfo() an.
+        Wird entweder über die self.board-Instanz direkt bei dort
+        getriggerten Änderungen oder via _UpdateBoardState() aufgerufen.
+        Benachrichtig die Status-Condition, so das in WaitForStateChange()
+        wartende Threads weiterarbeiten können.
+        """
+        self._AddStateInfo(state)
         self.info("Board state changed: %s", state)
         with self._state_lock:
             self._state = (True, state)
@@ -304,9 +339,24 @@ class Controller(LoggableClass):
 
     def CleanUp(self):
         self.job_timer.Terminate()
-        self.job_timer.Join()
+        self.job_timer.Join(6.0)
         self.job_timer = None
 
+    def _ReadSensors(self):
+        """
+        Wird im Intervall `SENSOR_INTERVAL` vom JobTimer aufgerufen.
+        Hinterlegt die Messergebnisse der angebundenen Sensoren und
+        aktualisiert den Board-Status.
+        """
+        self.temperature = self.board.GetTemperature()
+        self.light_sensor = self.board.GetLight()
+        self.info("Measured sensors. Light = %d, temperature = %.1f", self.light_sensor, self.temperature)
+        self._UpdateBoardState()
+        try:
+            with self.sensor_file.open('w') as f:
+                f.write(SENSOR_LINE_TPL % (self.light_sensor, self.temperature))
+        except Exception:
+            self.exception("Error while writing to %s", self.sensor_file)
 # ------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """
@@ -332,7 +382,7 @@ def main():
     Initialisiert das Logging und den Controller und startet diesen.
     Ausführung bis CTRL-C oder `kill -INT <PID>`.
     """
-    logger = shared.getLogger("ControlServer")
+    logger = shared.getLogger("control-server")
     address = ("", CONTROLLER_PORT)
     logger.info("Starting XML-RPC-Server as %r, pid = %s", address, os.getpid())
     try:

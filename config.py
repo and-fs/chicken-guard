@@ -5,23 +5,34 @@ Alle hier verwendeten PINs beziehen sich auf den BOARD-Mode,
 also die RPi-Nummerierung am Header.
 """
 # ------------------------------------------------------------------------
+DEBUG = True
+# ------------------------------------------------------------------------
 LOGDIR = 'log'               #: Log-Verzeichnis relativ zu www (root)
 RESOURCEDIR = 'resources'    #: Resourcen-Verzeichnis relativ zu www (root)
 SCRIPTDIR = 'scripts'        #: Script-Verzeichnis relativ zu www (root)
 MAPFILE = -1                 #: Auf -1 setzen wenn Release!
 BOARDFILE = 'board.json'     #: Name der Datei in der der Boardstatus
                              #: gespeichert wird (relativ zur 'RESOURCEDIR')
+SENSORFILE = 'sensor.csv'    #: Sensorwerte, relativ zu RESOURCEDIR
 # ------------------------------------------------------------------------
-#: Template für die Logausgabe (siehe logging - Modul)
-LOGFORMAT = '%(asctime)s  %(name)-15s %(thread)d %(levelname)-8s %(message)s'
-#'%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+if DEBUG:
+    #: Template für die Logausgabe (siehe logging - Modul)
+    LOGFORMAT = '%(asctime)s  %(name)-20s %(thread)-10d %(levelname)-8s %(message)s'
+    #'%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
 
-#: Template für das Zeitformat der Logausgabe (siehe logging - Modul)
-LOGDATEFMT = '' #%H:%M:%S:%f'
-#'%m-%d %H:%M:%S'
+    #: Template für das Zeitformat der Logausgabe (siehe logging - Modul)
+    LOGDATEFMT = ''
 
-#: Logging Level, 10 = logging.DEBUG
-LOGLEVEL = 10
+    #: Logging Level, 10 = logging.DEBUG
+    LOGLEVEL = 10
+else:
+    LOGFORMAT = '%(asctime)s  %(name)-20s %(levelname)-8s %(message)s'
+    LOGDATEFMT = '%m-%d %H:%M:%S'
+    LOGLEVEL = 20 # logging.INFO
+# ------------------------------------------------------------------------
+#: Template für die Ausgabe einer Zeile im SENSORFILE.
+#: Die Substituierungswerte sind (light, temperature).
+SENSOR_LINE_TPL = '%d;%.2f\n'
 # ------------------------------------------------------------------------
 # Die folgenden Pins sind OUTPUT-Pins
 PIN_RELAIS_1 = 40            #: PIN für Relais 1
@@ -102,6 +113,9 @@ SUNRISE_INTERVAL = 7000
 #: Prüfintervall des Türstatus (Öffnen / Schließen) in Sekunden
 DOORCHECK_INTERVAL = 60
 
+#: Intervall in dem die Messergebnisse der Sensoren erfasst werden in Sekunden.
+SENSOR_INTERVALL = 5 * 60
+
 #: Dauer in Sekunden die die Türautomatik bei manueller Bedienung deaktiviert
 #: wird.
 DOOR_AUTOMATIC_OFFTIME = 30 * 60
@@ -144,7 +158,7 @@ CAM_FRAMERATE = 10 #: Bildrate
 CAM_PORT = 8000    #: Port des Kameraservers
 
 #: Maximale Zeit, die ein Stream offengehalten wird (in Sekunden)
-MAX_STREAM_TIME = 1 * 60
+MAX_STREAM_TIME = 5 * 60
 
 #: Maximale Anzahl paralleler Streams
 MAX_STREAM_COUNT = 3
