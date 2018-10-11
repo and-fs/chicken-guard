@@ -35,6 +35,8 @@ class JobTimer(LoggableClass):
         self.last_sunrise_check = 0
         self.last_door_check = 0
         self.next_sensor_check = 0
+        self.light_switch_off_time = None
+        self.light_switch_on_time = None
 
     def Terminate(self):
         self.info("Terminating JobTimer.")
@@ -76,53 +78,94 @@ class JobTimer(LoggableClass):
         except Exception:
             self.exception("Error in JobTimer thread loop.")
 
+    def DoSunriseCheck(self, dtnow, now, open_time, close_time):
+        # aktuelle Sonnenaufgangs / Untergangszeiten holen
+        if self.last_sunrise_check + SUNRISE_INTERVAL < now:
+            # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
+            self.info("Doing sunrise time check.")
+            open_time, close_time = sunrise.GetSuntimes(dtnow)
+            # jetzt noch die nächsten beiden Aktionen ermitteln (für
+            # die Anzeige im Display)
+            next_steps = sunrise.GetNextActions(dtnow, open_time, close_time)
+            self.controller.SetNextActions(next_steps)
+            self.last_sunrise_check = now
+
+            if SWITCH_LIGHT_ON_BEFORE_CLOSING > 0:
+                # jetzt ermitteln wir die Einschaltzeit für die Innenbeleuchtung
+                for item in next_steps:
+                    if item is None:
+                        break
+                    dt, action = item
+                    if dt < dtnow:
+                        continue
+                    if action == DOOR_CLOSED:
+                        self.light_switch_on_time = dt - datetime.timedelta(seconds = SWITCH_LIGHT_ON_BEFORE_CLOSING)
+                        self.light_switch_off_time = dt + datetime.timedelta(seconds = SWITCH_LIGHT_OFF_AFTER_CLOSING )
+                        self.info("Calculated new light switch times: on at %s, off at %s.", self.light_switch_on_time, self.light_switch_off_time)
+        return (open_time, close_time)
+
+    def DoDoorCheck(self, dtnow, now, open_time, close_time):
+        if self.controller.automatic == DOOR_AUTO_OFF:
+            # wenn am controller die Automatik deaktiviert ist,
+            # müssen wir prüfen, ob diese wieder angeschaltet werden muss
+            if self.controller.automatic_enable_time <= now:
+                self.info("Enabling door automatic due to reaching manual control timeout.")
+                self.controller.EnableAutomatic()
+
+        if self.controller.automatic == DOOR_AUTO_ON:
+            # müssen wir die Tür öffnen / schließen?
+            if self.last_door_check + DOORCHECK_INTERVAL < now:
+                self.logger.debug("Doing door automatic check.")
+                self.last_door_check = now
+                action = sunrise.GetDoorAction(dtnow, open_time, close_time)
+                if action == DOOR_CLOSED:
+                    if not self.controller.IsDoorClosed():
+                        self.info("Closing door, currently is night.")
+                        self.controller._CloseDoorFromTimer()
+                else:
+                    # wir sind nach Sonnenauf- aber vor Sonnenuntergang
+                    if not self.controller.IsDoorOpen():
+                        self.info("Opening door, currently is day.")
+                        self.controller._OpenDoorFromTimer()
+        else:
+            self.logger.debug("Skipped door check, automatic is off.")
+
+    def DoSensorCheck(self, now):
+        if self.next_sensor_check < now:
+            self.next_sensor_check = now + SENSOR_INTERVALL
+            self.controller._ReadSensors()
+
+    def DoLightCheck(self, dtnow):
+        if (self.controller.automatic == DOOR_AUTO_ON) and (not self.light_switch_on_time is None):
+            if dtnow >= self.light_switch_off_time:
+                if self.controller.IsIndoorLightOn():
+                    self.info("Switching light off %.0f seconds after closing door.")
+                    self.controller.SwitchIndoorLight(False)
+                self.light_switch_on_time = None
+                self.light_switch_off_time = None
+            elif dtnow >= self.light_switch_on_time:
+                if not self.controller.IsIndoorLightOn():
+                    self.info("Switching light on %.0f seconds before closing door.")
+                    self.controller.SwitchIndoorLight(True)
+
     def _run(self):
         self.info("JobTimer started.")
         open_time, close_time = sunrise.GetSuntimes(datetime.datetime.now())
         while not self.ShouldTerminate():
             now = time.time()
             dtnow = datetime.datetime.now()
+            
+            # Öffnen / Schließen berechnen
+            (open_time, close_time) = self.DoSunriseCheck(dtnow, now, open_time, close_time)
 
-            # aktuelle Sonnenaufgangs / Untergangszeiten holen
-            if self.last_sunrise_check + SUNRISE_INTERVAL < now:
-                # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
-                self.info("Doing sunrise time check.")
-                open_time, close_time = sunrise.GetSuntimes(dtnow)
-                # jetzt noch die nächsten beiden Aktionen ermitteln (für
-                # die Anzeige im Display)
-                next_steps = sunrise.GetNextActions(dtnow, open_time, close_time)
-                self.controller.SetNextActions(next_steps)
-                self.last_sunrise_check = now
+            # Türstatus prüfen
+            self.DoDoorCheck(dtnow, now, open_time, close_time)
 
-            if self.controller.automatic == DOOR_AUTO_OFF:
-                # wenn am controller die Automatik deaktiviert ist,
-                # müssen wir prüfen, ob diese wieder angeschaltet werden muss
-                if self.controller.automatic_enable_time <= now:
-                    self.info("Enabling door automatic due to reaching manual control timeout.")
-                    self.controller.EnableAutomatic()
+            # Licht prüfen
+            self.DoLightCheck(dtnow)
 
-            if self.controller.automatic == DOOR_AUTO_ON:
-                # müssen wir die Tür öffnen / schließen?
-                if self.last_door_check + DOORCHECK_INTERVAL < now:
-                    self.logger.debug("Doing door automatic check.")
-                    self.last_door_check = now
-                    action = sunrise.GetDoorAction(dtnow, open_time, close_time)
-                    if action == DOOR_CLOSED:
-                        if not self.controller.IsDoorClosed():
-                            self.info("Closing door, currently is night.")
-                            self.controller._CloseDoorFromTimer()
-                    else:
-                        # wir sind nach Sonnenauf- aber vor Sonnenuntergang
-                        if not self.controller.IsDoorOpen():
-                            self.info("Opening door, currently is day.")
-                            self.controller._OpenDoorFromTimer()
-            else:
-                self.logger.debug("Skipped door check, automatic is off.")
-
-            # Sensoren auslesen
-            if self.next_sensor_check < now:
-                self.next_sensor_check = now + SENSOR_INTERVALL
-                self.controller._ReadSensors()
+            # Sensorwerte holen
+            self.DoSensorCheck(now)
 
             if self.ShouldTerminate():
                 break
@@ -382,7 +425,7 @@ def main():
     Initialisiert das Logging und den Controller und startet diesen.
     Ausführung bis CTRL-C oder `kill -INT <PID>`.
     """
-    logger = shared.getLogger("control-server")
+    logger = shared.getLogger("controller")
     address = ("", CONTROLLER_PORT)
     logger.info("Starting XML-RPC-Server as %r, pid = %s", address, os.getpid())
     try:
