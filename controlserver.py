@@ -363,7 +363,7 @@ class Controller(LoggableClass):
             # nur wenn die Automatik nicht bereits dauerhaft deaktiviert war,
             # stellen wir hier eine zeitbegrenzte Automatik ein
             self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
-            self.automatic = DOOR_AUTO_ON
+            self.automatic = DOOR_AUTO_OFF
             self.info("Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME))
 
         self._UpdateBoardState()
