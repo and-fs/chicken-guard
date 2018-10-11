@@ -3,14 +3,18 @@
 # ---------------------------------------------------------------------------------------
 from base import * # pylint: disable=W0614
 import controlserver
+import board
 import time
+# ---------------------------------------------------------------------------------------
+def _load_func(*args, **kwargs):
+    return True
 # ---------------------------------------------------------------------------------------
 @testfunction
 def test():
     GPIO.setwarnings(False)
     SetInitialGPIOState()
+    board.Board.Load = _load_func
     c = controlserver.Controller()
-
     check(c.IsDoorClosed(), "Initially door should be closed.")
     check(not c.IsDoorOpen(), "Initially door should not be open.")
 
@@ -31,6 +35,7 @@ def test():
     # wir müssen kurz warten, bis der Thread läuft, damit
     # c.OpenDoor mitbekommt, wenn die Reeds sich ändern
     check(f.WaitForExectionStart(1), "Future starts within time.")
+    time.sleep(1.0) # dem Thread Zeit zum Starten geben
 
     # da die Rückmeldung nur dann positiv erfolgt, wenn der Türkontakt auch geschlossen
     # wurde, müssen wir das jetzt hier tun.
@@ -39,30 +44,18 @@ def test():
         GPIO.output(REED_UPPER, REED_CLOSED) # oberes Reed geschlossen
 
     res = f.WaitForResult(waittime = 5.0)
-    check(res == True, "Calling OpenDoor() returns %r.", res)
+    check(res == True, "Calling OpenDoor() should return True, got %r.", res)
     
     check(c.IsDoorOpen(), "Door is open.")
     check(not c.IsDoorClosed(), "Door is not closed.")
 
     res = c.OpenDoor()
     check(res == False, "Calling OpenDoor() while door is opened shouldn't be possible")
-
+    logger.info("Closing door.")
     # --- Tür schließen ---
-    res = c.CloseDoor()
-    check(res, "Door closed.")
-
-    # Auch hier müssen wir die Bewegung "stoppen", da sonst der nächste
-    # Schritt fehlschlägt
-    c.StopDoor()
-    with GPIO.write_context():
-        motor_on = GPIO.input(MOTOR_ON)
-        move_dir = GPIO.input(MOVE_DIR)
-    check(motor_on == RELAIS_OFF, "Motor relais is off after stop.")
-    check(move_dir == MOVE_UP, "Moving direction is resetted after stop.")
-    check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after stop.")
-
     f = Future(c.CloseDoor)
     check(f.WaitForExectionStart(1), "Future starts within time.")
+    time.sleep(1.0) # dem Thread Zeit zum Starten geben
     # da die Rückmeldung nur dann positiv erfolgt, wenn der Türkontakt auch geschlossen
     # wurde, müssen wir das jetzt hier tun.
     with GPIO.write_context():
@@ -70,10 +63,13 @@ def test():
         GPIO.output(REED_UPPER, REED_OPENED) # oberes Reed offen
 
     res = f.WaitForResult(waittime = 5.0)
-    check(res == True, "Calling CloseDoor() returns %r.", res)
+    check(res == True, "Calling CloseDoor() should return True, got %r.", res)
     
     check(not c.IsDoorOpen(), "Door is not open.")
     check(c.IsDoorClosed(), "Door is closed.")
+    check(motor_on == RELAIS_OFF, "Motor relais is off after closing.")
+    check(move_dir == MOVE_UP, "Moving direction is resetted after closing.")
+    check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after closing.")
 
     res = c.CloseDoor()
     check(res == False, "Calling CloseDoor() while door is closed shouldn't be possible.")
