@@ -15,18 +15,16 @@ BOARDFILE = 'board.json'     #: Name der Datei in der der Boardstatus
                              #: gespeichert wird (relativ zur 'RESOURCEDIR')
 SENSORFILE = 'sensor.csv'    #: Sensorwerte, relativ zu RESOURCEDIR
 # ------------------------------------------------------------------------
-if DEBUG:
-    #: Template für die Logausgabe (siehe logging - Modul)
-    LOGFORMAT = '%(asctime)s  %(name)-20s %(thread)-10d %(levelname)-8s %(message)s'
-    #'%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+#: Template für die Logausgabe (siehe logging - Modul)
+LOGFORMAT = '%(asctime)s %(name)-20s %(thread)-10d %(levelname)-8s %(message)s'
 
+if DEBUG:
     #: Template für das Zeitformat der Logausgabe (siehe logging - Modul)
     LOGDATEFMT = ''
 
     #: Logging Level, 10 = logging.DEBUG
     LOGLEVEL = 10
 else:
-    LOGFORMAT = '%(asctime)s  %(name)-20s %(levelname)-8s %(message)s'
     LOGDATEFMT = '%m-%d %H:%M:%S'
     LOGLEVEL = 20 # logging.INFO
 # ------------------------------------------------------------------------
@@ -151,6 +149,15 @@ DOOR_CLOSED = 8        #: Tür ist geschlossen
 # ------------------------------------------------------------------------
 DOOR_MOVE_UP_TIME = 7.3    #: Maximale Zeit die die Tür zum Öffnen benötigt
 DOOR_MOVE_DOWN_TIME = 6.0  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+# ------------------------------------------------------------------------
+#: Gibt an, wieviel Sekunden vor den Schließen der Tür die Innen-
+#: beleuchtung aktiviert werden soll.
+#: 0 = aus
+SWITCH_LIGHT_ON_BEFORE_CLOSING = 30 * 60
+
+#: Wie SWITCH_LIGHT_ON_BEFORE_CLOSING, allerdings die Ausschaltzeit nach
+#: dem Schließen. Ist nur relevant, wenn SWITCH_LIGHT_ON_BEFORE_CLOSING != 0
+SWITCH_LIGHT_OFF_AFTER_CLOSING = 5 * 60
 # ------------------------------------------------------------------------
 CAM_WIDTH = 640    #: Breite des gestreamten Kamerabildes
 CAM_HEIGHT = 480   #: Höhe des gestreamten Kamerabildes
