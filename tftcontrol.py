@@ -354,7 +354,7 @@ class ScreenController(LoggableClass):
             self.needsUpdate()
 
 def main():
-    logger = shared.getLogger("ScreenController")
+    logger = shared.getLogger("display")
 
     try:
         ctrl = ScreenController(logger)
