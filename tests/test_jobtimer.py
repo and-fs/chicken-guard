@@ -5,6 +5,7 @@ from base import * # pylint: disable=W0614
 from config import *  # pylint: disable=W0614
 import time
 import controlserver
+import datetime
 # ---------------------------------------------------------------------------------------
 class ControllerDummy(object):
     def __init__(self):
@@ -12,6 +13,7 @@ class ControllerDummy(object):
         self.actions = []
         self.automatic = DOOR_AUTO_ON
         self.automatic_enable_time = -1
+        self.sensors_read = False
     def IsDoorClosed(self):
         return self.door_closed
     def CloseDoor(self):
@@ -25,9 +27,18 @@ class ControllerDummy(object):
     def EnableAutomatic(self):
         self.automatic = DOOR_AUTO_ON
         self.automatic_enable_time = -1
+    def _ReadSensors(self):
+        self.sensors_read = True
+    def IsIndoorLightOn(self):
+        return self.light_on
+    def SwitchIndoorLight(self, swon):
+        self.light_on = swon
 # ---------------------------------------------------------------------------------------
 @testfunction
 def test():
+    controlserver.SWITCH_LIGHT_OFF_AFTER_CLOSING = 5  # 5 Sekunden nach Schließen aus
+    controlserver.SWITCH_LIGHT_ON_BEFORE_CLOSING = 10 # 10 Sekunden vor Schließen an
+
     controller = ControllerDummy()
     timer = controlserver.JobTimer(controller)
 
@@ -78,7 +89,39 @@ def test():
     check(controller.automatic == DOOR_AUTO_ON, "Door automatic is reenabled.")
     check(timer.last_door_check > 0, "Door check done after reenabling automatic.")
 
+    # jetzt die Lichtschaltzeiten prüfen
+    dtnow = datetime.datetime.now()
+    for dt, action in controller.actions:
+        if action == DOOR_CLOSED:
+            if dt >= dtnow:
+                # die Aktion liegt in der Zukunft, demnach
+                # sollte die Lichtzeit berechnet worden sein
+                expected_off_time = dt + datetime.timedelta(seconds = controlserver.SWITCH_LIGHT_OFF_AFTER_CLOSING)
+                check(expected_off_time == timer.light_switch_off_time, "Light switch off time calculated correctly.")
+                expected_on_time = dt - datetime.timedelta(seconds = controlserver.SWITCH_LIGHT_ON_BEFORE_CLOSING)
+                check(expected_on_time == timer.light_switch_on_time, "Light switch on time calculated correctly.")
+            else:
+                check(timer.light_switch_on_time == None, "Light switch time deactivated.")
+
+    controller.light_on = False
+    timer.light_switch_on_time = dtnow + datetime.timedelta(seconds = 10)
+    timer.light_switch_off_time = timer.light_switch_on_time + datetime.timedelta(seconds = 10)
+    timer.DoLightCheck(dtnow)
+    check(controller.light_on == False, "Auto light is off before activation time.")
+    timer.DoLightCheck(dtnow + datetime.timedelta(seconds = 11))
+    check(controller.light_on == True, "Auto light is on after activation time.")
+    timer.DoLightCheck(dtnow + datetime.timedelta(seconds = 21))
+    check(controller.light_on == False, "Auto light is off after deactivation time.")
+
+    timer.light_switch_on_time = None
+    timer.DoLightCheck(dtnow + datetime.timedelta(seconds = 11))
+    check(controller.light_on == False, "Auto light is still off when on time not calculated.")
+
     controller.automatic = DOOR_AUTO_DEACTIVATED
+    timer.light_switch_on_time = dtnow + datetime.timedelta(seconds = 10)
+    timer.DoLightCheck(dtnow + datetime.timedelta(seconds = 11))
+    check(controller.light_on == False, "Auto light is still off after activation time when not in auto mode.")
+
     timer.ResetCheckTimes()
     timer.Join(0.1)
     controller.automatic_enable_time = time.time() + 1.0
