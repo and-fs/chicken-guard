@@ -263,6 +263,8 @@ class Board(LoggableClass):
 
         if reed_signaled:
             self.info("Reed %s has been closed.", str_dir)
+            if direction == MOVE_DOWN:
+                time.sleep(0.3) # die Tür schließt sonst nicht richtig
         else:
             self.warn("Reed %s not closed, reached timeout.", str_dir)
 

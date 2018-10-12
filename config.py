@@ -126,7 +126,7 @@ DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
 DAWN_OFFSET = -30 * 60
 
 #: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
-DUSK_OFFSET = 30 * 60
+DUSK_OFFSET = 45 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
@@ -153,7 +153,7 @@ DOOR_MOVE_DOWN_TIME = 6.0  #: Maximale Zeit zum Schließen der Tür (Sekunden)
 #: Gibt an, wieviel Sekunden vor den Schließen der Tür die Innen-
 #: beleuchtung aktiviert werden soll.
 #: 0 = aus
-SWITCH_LIGHT_ON_BEFORE_CLOSING = 30 * 60
+SWITCH_LIGHT_ON_BEFORE_CLOSING = 40 * 60
 
 #: Wie SWITCH_LIGHT_ON_BEFORE_CLOSING, allerdings die Ausschaltzeit nach
 #: dem Schließen. Ist nur relevant, wenn SWITCH_LIGHT_ON_BEFORE_CLOSING != 0
