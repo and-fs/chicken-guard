@@ -62,9 +62,9 @@ def check(condition, message, *args):
     Wenn erfüllt, wird die Nachricht mit dem Prefix `OK` ausgegeben,
     sonst `Fail`. In letzterem Fall wird ein TestError ausgelöst.
 
-    Args:
-        condition: Bedingung zur Erfüllung des Tests, wird als Bool evaluiert.
-        message: Nachricht zum Testschritt (was wurde erwartet).
+    :param condition: Bedingung zur Erfüllung des Tests, wird als Bool evaluiert.
+
+    :param message: Nachricht zum Testschritt (was wurde erwartet).
             Wird mit `args` substituiert, falls angegeben.
     """
     results['total'] += 1
@@ -97,7 +97,10 @@ class Future(object):
     Führt eine Funktion nebenläufig aus, das Ergebnis kann
     dann zu einem späteren Zeitpunkt abgefragt werden.
 
-    Beispiel: ```python
+    Beispiel:
+    
+    .. code-block:: python
+
         import time
         def time_consuming_pow2(a):
             time.sleep(2.0)
@@ -108,7 +111,7 @@ class Future(object):
         time.sleep(1.0)
         print (f.HasResult()) # False
         print (f.WaitForResult(2.0)) # "10 * 10 is 100"
-    ```
+
     """
     def __init__(self, function, *args, **kwargs):
         """

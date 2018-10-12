@@ -87,16 +87,19 @@ def GetNextActions(current_datetime, open_time, close_time):
     Args:
         current_datetime (datetime): Zeitpunkt, ab dem die Schritte ermittelt
             werden sollen.
+
         open_time (datetime): Zeitpunkt des Öffnens der Tür an dem Tag,
             in dem `current_datetime` liegt.
+
         close_time (datetime): Zeitpunkt des Schließens der Tür an dem Tag,
             in dem `current_datetime` liegt.
 
-    Returns (tuple):
+    Returns:
         Ein Tuple mit genau zwei Werten, jeder Wert wiederum ein Tuple.
         Das erste Element ist der Schaltzeitpunkt (datetime), das zweite
         die durchzuführende Aktion (`OPEN_DOOR`, `CLOSE_DOOR`).
-        Beispiel:
+
+        Beispiel::
             ((datetime(2018, 9, 28, 6, 36, 0), 'OPEN_DOOR'),
              (datetime(2018, 9, 28, 18, 30, 0), 'CLOSE_DOOR'))
     """

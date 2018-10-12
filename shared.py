@@ -63,9 +63,11 @@ def getLogger(name = None, filemode = 'a'):
     Liefert eine Logger-Instanz.
     Ruft zuerst immer configureLogging mit `name` und `filemode` auf,
     gibt dann einen Logger aus logging zurück.
+    
     Args:
         name (str, optional): Name des Loggers. Wenn `None` oder
             nicht angegeben, wird `'root'` verwendet.
+
         filemode (str, optional): Dateimodus für die Logging-Datei.
             Muss ein Schreibmodus sein, Standard ist 'w'.
     """
