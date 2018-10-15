@@ -4,7 +4,7 @@
 import io
 import socketserver
 import time
-from threading import Condition
+from threading import Condition, RLock
 from http import server
 # ------------------------------------------------------------------------
 from config import * # pylint: disable=W0614
@@ -106,6 +106,7 @@ class StreamingOutput(object):
 class Camera(LoggableClass):
     def __init__(self):
         LoggableClass.__init__(self, name = "camera")
+        self._lock = RLock()
         self.camera = None
         self.output = None
         self.counter = 0
@@ -122,7 +123,7 @@ class Camera(LoggableClass):
     def __exit__(self, *exc_info):
         if exc_info:
             exc_type = exc_info[0]
-            if exc_type not in (None, ConnectionAbortedError, TimeoutError):
+            if exc_type not in (None, ConnectionAbortedError, TimeoutError, BrokenPipeError):
                 self.error("Exception in camera context.", exc_info = exc_info)
 
         try:
@@ -132,34 +133,37 @@ class Camera(LoggableClass):
             raise
 
     def acquireCamera(self):
-        self.counter += 1
-        self.debug("Acquired camera, counter: %d", self.counter)
-        if self.counter == 1:
-            self.counter = 1
-            self.camera = PiCamera(resolution = RESOLUTION, framerate = CAM_FRAMERATE)
-            self.output = StreamingOutput()
-            self.camera.start_recording(self.output, format = 'mjpeg')
-            self.debug("Switched camera on.")
-        return self.camera
+        with self._lock:
+            self.counter += 1
+            self.debug("Acquired camera, counter: %d", self.counter)
+            if self.counter == 1:
+                self.counter = 1
+                self.camera = PiCamera(resolution = RESOLUTION, framerate = CAM_FRAMERATE)
+                self.output = StreamingOutput()
+                self.camera.start_recording(self.output, format = 'mjpeg')
+                self.debug("Switched camera on.")
+            return self.camera
 
     def releaseCamera(self):
-        self.counter -= 1
-        self.debug("Released camera, counter: %d", self.counter)
-        if self.counter == 0:
-            self.camera.stop_recording()
-            self.camera.close()
-            self.camera = None
-            self.output = None
-            self.debug("Switched camera off.")
+        with self._lock:
+            self.counter -= 1
+            self.debug("Released camera, counter: %d", self.counter)
+            if self.counter == 0:
+                self.camera.stop_recording()
+                self.camera.close()
+                self.camera = None
+                self.output = None
+                self.debug("Switched camera off.")
 
     def cleanUp(self):
-        if self.counter > 0:
-            self.camera.stop_recording()
-            self.camera.close()
-            self.camera = None
-            self.output = None
-            self.counter = 0
-            self.debug("Switched camera off due to cleanup.")
+        with self._lock:
+            if self.counter > 0:
+                self.camera.stop_recording()
+                self.camera.close()
+                self.camera = None
+                self.output = None
+                self.counter = 0
+                self.debug("Switched camera off due to cleanup.")
 # ------------------------------------------------------------------------
 camera = Camera()
 # ------------------------------------------------------------------------
