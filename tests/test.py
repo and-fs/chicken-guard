@@ -1,7 +1,8 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------------
-from base import *
+# pylint: disable=E0401, E0602
+from base import * # pylint: disable=W0614
 import test_board
 import test_controller
 import test_sunrise

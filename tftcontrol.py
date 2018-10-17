@@ -16,8 +16,8 @@ from datetime import datetime
 from threading import Condition
 # ------------------------------------------------------------------------
 import lib_tft24t
-import spidev
-from PIL import ImageFont, Image
+import spidev                       # pylint: disable=E0401
+from PIL import ImageFont, Image    # pylint: disable=E0401
 # ------------------------------------------------------------------------
 import shared
 from gpio import GPIO

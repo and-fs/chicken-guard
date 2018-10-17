@@ -16,11 +16,11 @@ def analogToCelsius(analog_value):
     Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben.
     """
     return float(analog_value)
-    nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
-    material_constant = 1100.0 # Materialkonstante des Thermistor aus dem Datenblatt
-    calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
-    temp = 1.0 / (1.0 / nominal_temp + 1.0 / material_constant * math.log(analog_value / calibration_value))
-    return temp - 273.15
+    # nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
+    # material_constant = 1100.0 # Materialkonstante des Thermistor aus dem Datenblatt
+    # calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
+    # temp = 1.0 / (1.0 / nominal_temp + 1.0 / material_constant * math.log(analog_value / calibration_value))
+    # return temp - 273.15
 # ---------------------------------------------------------------------------------------
 class Sensors(LoggableClass):
     """

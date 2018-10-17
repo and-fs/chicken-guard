@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------
+# pylint: disable=E0602
 from base import * # pylint: disable=W0614
 from config import *  # pylint: disable=W0614
 import time
