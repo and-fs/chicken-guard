@@ -7,8 +7,20 @@ import board, shared
 from gpio import GPIO
 from config import * # pylint: disable=W0614
 # ---------------------------------------------------------------------------------------
-def _load_func(*args, **kwargs):
+filestate = dict(saved = False, loaded = False)
+# ---------------------------------------------------------------------------------------
+def _DummyLoad(*args, **kwargs):
+    filestate['loaded'] = True
     return True
+# ---------------------------------------------------------------------------------------
+def _DummySave(*args, **kwargs):
+    filestate['saved'] = True
+    return True
+# ---------------------------------------------------------------------------------------
+def _GetSaveState():
+    res = filestate['saved']
+    filestate['saved'] = False
+    return res
 # ---------------------------------------------------------------------------------------
 @testfunction
 def test():
@@ -17,9 +29,11 @@ def test():
 
     GPIO.setwarnings(False)
     SetInitialGPIOState()
-    board.Board.Load = _load_func
+    board.Board.Load = _DummyLoad
+    board.Board.Save = _DummySave
+    filestate.update(saved = False, loaded = False)
     b = board.Board()
-
+    check(filestate['loaded'] == True, "Initial board state has been loaded.")
     check(b.IsDoorClosed(), "Initially door should be closed.")
     check(not b.IsDoorOpen(), "Initially door should not be open.")
 
@@ -44,6 +58,7 @@ def test():
     time.sleep(0.5)
     check(f.HasResult(), "OpenDoor() is finished.")
 
+    check(_GetSaveState(), "Board state has been saved.")
     check(b.IsDoorOpen(), "Door should be opened when upper reed is LOW")
     check(not b.IsDoorClosed(), "Door should not be closed when lower reed is HIGH")
     res = f.WaitForResult()
@@ -51,6 +66,8 @@ def test():
 
     res = b.OpenDoor()
     check(not res, "Calling OpenDoor() while door is opened shouldn't be possible")
+    check(not _GetSaveState(), "Board state not saved when operation fails.")
+
 
     # --- Tür schließen ---
 
@@ -71,13 +88,14 @@ def test():
     time.sleep(1.0) # anderen Thread ranlassen
     check(f.HasResult(), "CloseDoor() is finished.")
 
-
+    check(_GetSaveState(), "Board state has been saved.")
     check(b.IsDoorClosed(), "Door should be closed when lower reed is LOW")
     check(not b.IsDoorOpen(), "Door should not be open when upper reed is HIGH")
     check(f.WaitForResult(), "CloseDoor() succeeded.")
 
     res = b.CloseDoor()
     check(not res, "Calling CloseDoor() while door is open shouldn't be possible.")
+    check(not _GetSaveState(), "Board state not saved when operation fails.")    
 
     # --- Innenbeleuchtung ---
     check(not b.IsIndoorLightOn(), "Indoor light should be initially off.")
