@@ -6,12 +6,14 @@ import test_board
 import test_controller
 import test_sunrise
 import test_jobtimer
+import test_watchdog
 # ---------------------------------------------------------------------------------------------
 def test():
     test_board.test()
     test_controller.test()
     test_sunrise.test()
     test_jobtimer.test()
+    test_watchdog.test()
     print ("-" * 80)
     print ("{ok} of {total} tests succeded, {fail} failed.".format(**results))
     if results['fail']:

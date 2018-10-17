@@ -50,7 +50,9 @@ class Watchdog(LoggableClass):
         #: Die Wartezeit nach Ende jeder Loop.
         self.loop_time = 5.0
         #: Liste mit den zu startenden und überwachenden Python-Scripts.
-        self.scripts = _scripts
+        self.scripts = scripts
+        #: Run-Flag, kann auf Fals gesetzt werden um die Loop zu beenden.
+        self._run = True
 
     def StartSingle(self, scriptname):
         """
@@ -68,6 +70,7 @@ class Watchdog(LoggableClass):
             self.error("Could not start '%s': %s", subprocess.list2cmdline(cmdline), e)
             return None
         p.name = scriptname
+        self.info("Started '%s' with pid %s.", scriptname, p.pid)
         return p
 
     def StartAll(self):
@@ -84,7 +87,6 @@ class Watchdog(LoggableClass):
             if p is None:
                 return False
             self.processes.add(p)
-            self.info("Started '%s' with pid %s.", scriptname, p.pid)
             time.sleep(1) # kurz warten, damit der Prozess hochfahren kann
         return True
 
@@ -108,7 +110,7 @@ class Watchdog(LoggableClass):
         # und neu gestartet werden müssen.
         needs_restart = set()
 
-        while True:
+        while self._run:
             self.debug("Doing process check.")
 
             failed = set() # hier kommen die PIDs der fehlgeschlagenen Prozesse rein
@@ -148,9 +150,10 @@ class Watchdog(LoggableClass):
     def _Kill(self, p):
         try:
             p.kill()
-        except Exception:
-            self.exception("Failed to send SIGKILL to '%s' with PID %d.", p.name, p.pid)
+        except Exception as e:
+            self.error("Failed to send SIGKILL to '%s' with PID %d: %s", p.name, p.pid, e)
         else:
+            self.info("Killed '%s' with PID %d.", p.name, p.pid)
             return True
         return False
 
@@ -170,9 +173,11 @@ class Watchdog(LoggableClass):
                 if exitcode is None:
                     try:
                         p.send_signal(SIGINT)
-                    except Exception:
-                        self.exception("Failed to send SIGINT to '%s' with PID %d.", p.name, p.pid)
-                    self._Kill(p)
+                    except Exception as e:
+                        self.error("Failed to send SIGINT to '%s' with PID %d: %s", p.name, p.pid, e)
+                        self._Kill(p)
+                    else:
+                        self.info("Sent SIGINT to '%s' with PID %d.", p.name, p.pid)
                     time.sleep(0.1)
                     self._CheckExitCode(p)
 
@@ -196,6 +201,9 @@ class Watchdog(LoggableClass):
                     self.processes.clear()
         except Exception:
             self.exception("Error during cleanup.")
+
+    def Terminate(self):
+        self._run = False
 
     def __call__(self):
         """
