@@ -68,7 +68,7 @@ def test():
     with GPIO.write_context():
         GPIO.output(REED_LOWER, REED_CLOSED) # unten auf LOW
 
-    time.sleep(0.5) # anderen Thread ranlassen
+    time.sleep(1.0) # anderen Thread ranlassen
     check(f.HasResult(), "CloseDoor() is finished.")
 
 
