@@ -91,7 +91,7 @@ def test():
     check(f.WaitForExectionStart(1), "Future starts within time.")
 
     try:
-        time.sleep(1.0)
+        time.sleep(3.0)
         check(len(w.processes) == 3, "All processes have been started: %s", w.processes)
         time.sleep(1.0)
         check(len(w.processes) == 3, "All processes are still running: %s", w.processes)
