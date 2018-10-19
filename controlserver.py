@@ -139,13 +139,13 @@ class JobTimer(LoggableClass):
         if (self.controller.automatic == DOOR_AUTO_ON) and (not self.light_switch_on_time is None):
             if dtnow >= self.light_switch_off_time:
                 if self.controller.IsIndoorLightOn():
-                    self.info("Switching light off %.0f seconds after closing door.")
+                    self.info("Switching light off %.0f seconds after closing door.", SWITCH_LIGHT_OFF_AFTER_CLOSING)
                     self.controller.SwitchIndoorLight(False)
                 self.light_switch_on_time = None
                 self.light_switch_off_time = None
             elif dtnow >= self.light_switch_on_time:
                 if not self.controller.IsIndoorLightOn():
-                    self.info("Switching light on %.0f seconds before closing door.")
+                    self.info("Switching light on %.0f seconds before closing door.", SWITCH_LIGHT_ON_BEFORE_CLOSING)
                     self.controller.SwitchIndoorLight(True)
 
     def _run(self):
