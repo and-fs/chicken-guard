@@ -34,6 +34,10 @@ class ControllerDummy(object):
         return self.light_on
     def SwitchIndoorLight(self, swon):
         self.light_on = swon
+    def _CloseDoorFromTimer(self):
+        self.CloseDoor()
+    def _OpenDoorFromTimer(self):
+        self.OpenDoor()
 # ---------------------------------------------------------------------------------------
 @testfunction
 def test():

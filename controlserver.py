@@ -91,17 +91,35 @@ class JobTimer(LoggableClass):
             self.last_sunrise_check = now
 
             if SWITCH_LIGHT_ON_BEFORE_CLOSING > 0:
-                # jetzt ermitteln wir die Einschaltzeit für die Innenbeleuchtung
-                for item in next_steps:
-                    if item is None:
-                        break
-                    dt, action = item
-                    if dt < dtnow:
-                        continue
-                    if action == DOOR_CLOSED:
-                        self.light_switch_on_time = dt - datetime.timedelta(seconds = SWITCH_LIGHT_ON_BEFORE_CLOSING)
-                        self.light_switch_off_time = dt + datetime.timedelta(seconds = SWITCH_LIGHT_OFF_AFTER_CLOSING )
-                        self.info("Calculated new light switch times: on at %s, off at %s.", self.light_switch_on_time, self.light_switch_off_time)
+                # Wichtig: wenn das Licht zur Schließzeit der Tür automatisch
+                # getriggert wird, darf in dieser Zeit die Lichtschaltzeit nicht
+                # berechnet werden!
+                can_calculate = True
+                # die Start- und Endzeit des Intervall runden wir noch in die entsprechende
+                # Richtung um die Zeit des Türprüfintervalls (weil in diesem auch die Lichtschaltzeiten
+                # geprüft werden)
+                if not self.light_switch_on_time is None:
+                    light_ivl_start = self.light_switch_on_time - datetime.timedelta(seconds = DOORCHECK_INTERVAL)
+                    light_ivl_end = self.light_switch_on_time + datetime.timedelta(seconds = DOORCHECK_INTERVAL)
+
+                    if (dtnow >= light_ivl_start) and (dtnow <= light_ivl_end):
+                        # hier sind wir genau in der Lichtschaltzeit, also lassen wir hier die Berechnung
+                        # aus und führen wir diese erst beim nächsten Mal durch, das reicht aus.
+                        self.info("Skipped light switch times calculation due to beeing currently in light interval.")
+                        can_calculate = False
+                        
+                if can_calculate:
+                    # jetzt ermitteln wir die Einschaltzeit für die Innenbeleuchtung
+                    for item in next_steps:
+                        if item is None:
+                            break
+                        dt, action = item
+                        if dt < dtnow:
+                            continue
+                        if action == DOOR_CLOSED:
+                            self.light_switch_on_time = dt - datetime.timedelta(seconds = SWITCH_LIGHT_ON_BEFORE_CLOSING)
+                            self.light_switch_off_time = dt + datetime.timedelta(seconds = SWITCH_LIGHT_OFF_AFTER_CLOSING )
+                            self.info("Calculated new light switch times: on at %s, off at %s.", self.light_switch_on_time, self.light_switch_off_time)
         return (open_time, close_time)
 
     def DoDoorCheck(self, dtnow, now, open_time, close_time):
