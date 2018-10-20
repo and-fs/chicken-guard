@@ -126,7 +126,7 @@ DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
 DAWN_OFFSET = -30 * 60
 
 #: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
-DUSK_OFFSET = 15 * 60
+DUSK_OFFSET = 45 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
@@ -135,8 +135,8 @@ EARLIEST_OPEN_TIMES = {
     2: (5, 30),
     3: (5, 30),
     4: (5, 30),
-    5: (7, 30), # Samstag
-    6: (7, 30), # Sonntag
+    5: (8, 00), # Samstag
+    6: (8, 00), # Sonntag
 }
 # ------------------------------------------------------------------------
 #: Tür Stati.
@@ -169,4 +169,14 @@ MAX_STREAM_TIME = 5 * 60
 
 #: Maximale Anzahl paralleler Streams
 MAX_STREAM_COUNT = 3
+# ------------------------------------------------------------------------
+#: Dauer in Sekunden, die der Shutdown-Button gedrückt sein muss,
+#: um einen Shutdown auszulösen.
+#: Achtung: dieser Wert muss GRÖSSER als BTN_DURATION_REBOOT sein
+BTN_DURATION_SHUTDOWN = 6.0
+
+#: Dauer in Sekunden, die der Shutdown-Button gedrückt sein muss,
+#: um einen Reboot auszulösen.
+#: Achtung: dieser Wert muss KLEINER als BTN_DURATION_SHUTDOWN sein
+BTN_DURATION_REBOOT = 2.0
 # ------------------------------------------------------------------------

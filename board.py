@@ -106,6 +106,11 @@ class Board(LoggableClass):
         self.light_state_indoor = False
         self.light_state_outdoor = False
 
+        #: Zeitpunkt, an dem der Shutdown-Button gedrückt wurde.
+        #: Wird benutzt um zu ermitteln, wie lange der Knopf
+        #: gedrückt wurde (und Fehlsignalisierung auszuschließen)
+        self.shutdown_btn_time = 0
+
         self._wait_condition = threading.Condition()
 
         self.state_change_handler = None
@@ -120,7 +125,7 @@ class Board(LoggableClass):
         self.logger.debug("Settings pins %s to IN.", INPUT_PINS)
         GPIO.setup(INPUT_PINS, GPIO.IN)
 
-        GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.RISING, self.OnShutdownButtonPressed, bouncetime = 200)
+        GPIO.add_event_detect(SHUTDOWN_BUTTON, GPIO.BOTH, self.OnShutdownButtonPressed, bouncetime = 200)
 
         self.sensor = Sensors()
 
@@ -173,12 +178,35 @@ class Board(LoggableClass):
         return True
     # -----------------------------------------------------------------------------------
     def OnShutdownButtonPressed(self, *args):
-        #: TODO: es kann sein, dass das nicht funktioniert, weil der Controller nicht
-        #: als root - Nutzer ausgeführt wird.
-        #: In diesem Fall muss ein eigenes Script her, welches beim Startup
-        #: als root ausgeführt wird und den Button überwacht
-        self.info("Shutdown button has been released, shutting system down.")
-        os.system("sudo shutdown -h now")
+        # der Button zieht das permanente HIGH-Signal auf LOW, wenn
+        # er gedrückt wird (PULL_UP)
+        if GPIO.input(SHUTDOWN_BUTTON) == GPIO.LOW:
+            # der Knopf ist gedrückt.
+            if self.shutdown_btn_time != 0:
+                # da stimmt was nicht, wir ignorieren lieber alles,
+                # setzen den Wert aber zurück
+                self.shutdown_btn_time = 0
+                return
+            self.shutdown_btn_time = time.time()
+        else:
+            # der Knopf wurde losgelassen
+            if self.shutdown_btn_time == 0:
+                # auch hier wäre jetzt was verkehrt, also
+                # ignorieren
+                return
+            # jetzt prüfen, wie lange er gedrückt war.
+            pressed_duration = time.time() - self.shutdown_btn_time
+            # und setzen den Wert wieder zurück
+            self.shutdown_btn_time = 0
+            self.info("Shutdown button has been pressed for %.2f seconds.", pressed_duration)
+            if pressed_duration > BTN_DURATION_SHUTDOWN:
+                # shutdown
+                self.info("Shutting system down.")
+                os.system("sudo shutdown -h now")
+            elif pressed_duration > BTN_DURATION_REBOOT:
+                # reboot
+                self.info("Rebooting system.")
+                os.system("sudo reboot -h now")
     # -----------------------------------------------------------------------------------
     # --- LICHT -------------------------------------------------------------------------
     # -----------------------------------------------------------------------------------
