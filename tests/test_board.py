@@ -55,7 +55,7 @@ def test():
     with GPIO.write_context():
         GPIO.output(REED_UPPER, REED_CLOSED) # oben auf LOW
 
-    time.sleep(0.5)
+    time.sleep(0.5 + UPPER_REED_OFFSET)
     check(f.HasResult(), "OpenDoor() is finished.")
 
     check(_GetSaveState(), "Board state has been saved.")

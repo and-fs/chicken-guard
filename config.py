@@ -97,9 +97,6 @@ CONTROLLER_PORT = 8010        #: Port des XMLRPC-Controller-Server
 #: Adresse des XMLRPC-Server, der die Board-Schnittstelle bereitstellt
 CONTROLLER_URI = 'http://%s:%s' % (CONTROLLER_HOST, CONTROLLER_PORT)
 # ------------------------------------------------------------------------
-MAX_DOOR_MOVE_DURATION = 8.0 #: Maximale Zeit (in Sekunden) die die Tür für
-                             #: eine volle Bewegung benötigt.
-# ------------------------------------------------------------------------
 #: Anzahl Sekunden nach der der TFT ohne Aktivität (Touch) ausgeschalten
 #: wird
 TFT_SLEEP_TIMEOUT = 30
@@ -126,7 +123,7 @@ DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
 DAWN_OFFSET = -30 * 60
 
 #: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
-DUSK_OFFSET = 45 * 60
+DUSK_OFFSET = 40 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
@@ -147,8 +144,13 @@ DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN #: Tür in Bewegung
 DOOR_OPEN = 4          #: Tür ist offen
 DOOR_CLOSED = 8        #: Tür ist geschlossen
 # ------------------------------------------------------------------------
-DOOR_MOVE_UP_TIME = 7.3    #: Maximale Zeit die die Tür zum Öffnen benötigt
-DOOR_MOVE_DOWN_TIME = 6.0  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+DOOR_MOVE_UP_TIME = 7.6    #: Maximale Zeit die die Tür zum Öffnen benötigt
+DOOR_MOVE_DOWN_TIME = 6.6  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+LOWER_REED_OFFSET = 0.6    #: Dauer in Sekunden die die Tür nach Signalisierung
+                           #: durch den unteren Magnetschalter weiter läuft,
+                           #: damit die Tür vollständig geschlossen ist
+UPPER_REED_OFFSET = 0.6    #: Wie :data:`LOWER_REED_OFFSET` für den oberen
+                           #: Magnetkontakt
 # ------------------------------------------------------------------------
 #: Gibt an, wieviel Sekunden vor den Schließen der Tür die Innen-
 #: beleuchtung aktiviert werden soll.

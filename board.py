@@ -254,15 +254,19 @@ class Board(LoggableClass):
         GPIO.output(MOVE_DIR, MOVE_UP)
         self.SetDoorState(end_state)
 
-    def SyncMoveDoor(self, direction, max_duration:float = MAX_DOOR_MOVE_DURATION):
+    def SyncMoveDoor(self, direction):
         if direction == MOVE_UP:
             str_dir = "up"
             reed_pin = REED_UPPER
             end_state = DOOR_OPEN
+            max_duration = DOOR_MOVE_UP_TIME
+            reed_offset = UPPER_REED_OFFSET
         else:
             str_dir = "down"
             reed_pin = REED_LOWER
             end_state = DOOR_CLOSED
+            max_duration = DOOR_MOVE_DOWN_TIME
+            reed_offset = LOWER_REED_OFFSET
 
         can_move = not self.IsReedClosed(reed_pin)
         if can_move:
@@ -291,8 +295,7 @@ class Board(LoggableClass):
 
         if reed_signaled:
             self.info("Reed %s has been closed.", str_dir)
-            if direction == MOVE_DOWN:
-                time.sleep(0.3) # die Tür schließt sonst nicht richtig
+            time.sleep(reed_offset)
         else:
             self.warn("Reed %s not closed, reached timeout.", str_dir)
 
@@ -339,7 +342,7 @@ class Board(LoggableClass):
         Wie 'OpenDoor', allerdings in die andere Richtung.
         """
         self.debug("Executing CloseDoor command.")
-        return self.SyncMoveDoor(MOVE_DOWN, DOOR_MOVE_DOWN_TIME)
+        return self.SyncMoveDoor(MOVE_DOWN)
 
     def StopDoor(self):
         """
