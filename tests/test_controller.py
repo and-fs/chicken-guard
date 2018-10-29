@@ -1,97 +1,153 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 # ---------------------------------------------------------------------------------------
-from base import * # pylint: disable=W0614
+# pylint: disable=C0413, C0111, C0103
+import unittest
+# ---------------------------------------------------------------------------------------
+from tests import base
 import controlserver
 import board
-import time
+from config import * # pylint: disable=W0614; unused import
+from gpio import GPIO
 # ---------------------------------------------------------------------------------------
-def _load_func(*args, **kwargs):
+def _DummyFunc(*_args, **_kwargs):
     return True
 # ---------------------------------------------------------------------------------------
-@testfunction
-def test():
-    GPIO.setwarnings(False)
-    SetInitialGPIOState()
-    board.Board.Load = _load_func
-    c = controlserver.Controller()
-    check(c.IsDoorClosed(), "Initially door should be closed.")
-    check(not c.IsDoorOpen(), "Initially door should not be open.")
+class Test_TestController(base.TestCase):
 
-    # --- Tür öffnen ---
-    res = c.OpenDoor()
-    check(res == False, "Expected door opener to run into timeout.")
-    # Jetzt müssen wir die Bewegung "stoppen", da sonst der nächste
-    # Schritt fehlschlägt
-    c.StopDoor()
-    with GPIO.write_context():
-        motor_on = GPIO.input(MOTOR_ON)
-        move_dir = GPIO.input(MOVE_DIR)
-    check(motor_on == RELAIS_OFF, "Motor relais is off after stop.")
-    check(move_dir == MOVE_UP, "Moving direction is resetted after stop.")
-    check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after stop.")
+    @classmethod
+    def setUpClass(cls):
+        GPIO.setwarnings(False)
+        board.Board.Load = _DummyFunc
+        board.Board.Save = _DummyFunc
 
-    f = Future(c.OpenDoor)
-    # wir müssen kurz warten, bis der Thread läuft, damit
-    # c.OpenDoor mitbekommt, wenn die Reeds sich ändern
-    check(f.WaitForExectionStart(1), "Future starts within time.")
-    time.sleep(1.0) # dem Thread Zeit zum Starten geben
+    def setUp(self):
+        super().setUp()
+        base.SetInitialGPIOState()
+        with GPIO.write_context():
+            GPIO.output(REED_LOWER, REED_CLOSED) # Kontakt oben offen
+            GPIO.output(REED_UPPER, REED_OPENED) # Kontakt unten geschlossen
+        self.controller = controlserver.Controller(start_jobs = False)
 
-    # da die Rückmeldung nur dann positiv erfolgt, wenn der Türkontakt auch geschlossen
-    # wurde, müssen wir das jetzt hier tun.
-    with GPIO.write_context():
-        GPIO.output(REED_LOWER, REED_OPENED) # unteres Reed offen
-        GPIO.output(REED_UPPER, REED_CLOSED) # oberes Reed geschlossen
+    def test_InitialState(self):
+        c = self.controller
+        self.assertTrue(c.IsDoorClosed(), "Initially door should be closed.")
+        self.assertFalse(c.IsDoorOpen(), "Initially door should not be open.")
+        self.assertFalse(c.board.IsDoorMoving(), "Initially door state is 'not moving'.")
+        self.assertEqual(c.automatic, DOOR_AUTO_ON, "Door automatic is ON.")
 
-    res = f.WaitForResult(waittime = 5.0)
-    check(res == True, "Calling OpenDoor() should return True, got %r.", res)
-    
-    check(c.IsDoorOpen(), "Door is open.")
-    check(not c.IsDoorClosed(), "Door is not closed.")
 
-    res = c.OpenDoor()
-    check(res == False, "Calling OpenDoor() while door is opened shouldn't be possible")
-    logger.info("Closing door.")
-    # --- Tür schließen ---
-    f = Future(c.CloseDoor)
-    check(f.WaitForExectionStart(1), "Future starts within time.")
-    time.sleep(1.0) # dem Thread Zeit zum Starten geben
-    # da die Rückmeldung nur dann positiv erfolgt, wenn der Türkontakt auch geschlossen
-    # wurde, müssen wir das jetzt hier tun.
-    with GPIO.write_context():
-        GPIO.output(REED_LOWER, REED_CLOSED) # unteres Reed geschlossen
-        GPIO.output(REED_UPPER, REED_OPENED) # oberes Reed offen
+    def test_Light(self):
+        c = self.controller
+        self.assertFalse(c.IsIndoorLightOn(), "Indoor light should be initially off.")
+        c.SwitchIndoorLight(False)
+        self.assertFalse(c.IsIndoorLightOn(), "Indoor light should be off.")
+        c.SwitchIndoorLight(True)
+        self.assertTrue(c.IsIndoorLightOn(), "Indoor light should be on.")
+        c.SwitchIndoorLight(False)
+        self.assertFalse(c.IsIndoorLightOn(), "Indoor light should be off.")
 
-    res = f.WaitForResult(waittime = 5.0)
-    check(res == True, "Calling CloseDoor() should return True, got %r.", res)
-    
-    check(not c.IsDoorOpen(), "Door is not open.")
-    check(c.IsDoorClosed(), "Door is closed.")
-    check(motor_on == RELAIS_OFF, "Motor relais is off after closing.")
-    check(move_dir == MOVE_UP, "Moving direction is resetted after closing.")
-    check(c.board.IsDoorMoving() == False, "Door state is 'not moving' after closing.")
+        self.assertFalse(c.IsOutdoorLightOn(), "Outdoor light should be initially off.")
+        c.SwitchOutdoorLight(False)
+        self.assertFalse(c.IsOutdoorLightOn(), "Outdoor light should be off.")
+        c.SwitchOutdoorLight(True)
+        self.assertTrue(c.IsOutdoorLightOn(), "Outdoor light should be on.")
+        c.SwitchOutdoorLight(False)
+        self.assertFalse(c.IsOutdoorLightOn(), "Outdoor light should be off.")
 
-    res = c.CloseDoor()
-    check(res == False, "Calling CloseDoor() while door is closed shouldn't be possible.")
+    def OpenDoorTest(self):
+        ctrl = self.controller
+        ftr = base.Future(ctrl.OpenDoor)
+        self.assertTrue(ftr.WaitForExectionStart(0.5), "Door open command is running.")
 
-    # --- Innenbeleuchtung ---
-    check(not c.IsIndoorLightOn(), "Indoor light should be initially off.")
-    c.SwitchIndoorLight(False)
-    check(not c.IsIndoorLightOn(), "Indoor light should be off.")
-    c.SwitchIndoorLight(True)
-    check(c.IsIndoorLightOn(), "Indoor light should be on.")
-    c.SwitchIndoorLight(False)
-    check(not c.IsIndoorLightOn(), "Indoor light should be off.")
+        with self.assertRaises(TimeoutError):
+            ftr.WaitForResult(0.5)
 
-    # --- Aussenbeleuchtung ---
-    check(not c.IsOutdoorLightOn(), "Outdoor light should be initially off.")
-    c.SwitchOutdoorLight(False)
-    check(not c.IsOutdoorLightOn(), "Outdoor light should be off.")
-    c.SwitchOutdoorLight(True)
-    check(c.IsOutdoorLightOn(), "Outdoor light should be on.")
-    c.SwitchOutdoorLight(False)
-    check(not c.IsOutdoorLightOn(), "Outdoor light should be off.")
-    return True
+        with GPIO.write_context():
+            motor_on = GPIO.input(MOTOR_ON)
+            move_dir = GPIO.input(MOVE_DIR)
+
+        self.assertEqual(ctrl.automatic, DOOR_AUTO_OFF, "Door automatic is temporary disabled.")
+        self.assertEqual(motor_on, RELAIS_ON, "Motor is running.")
+        self.assertEqual(move_dir, MOVE_UP, "Door is moving up.")
+        self.assertTrue(ctrl.board.IsDoorMoving(), "Door state is 'moving'.")
+        return ftr
+
+    def test_OpenDoorByTime(self):
+        ftr = self.OpenDoorTest()
+
+        self.assertTrue(ftr.WaitForResult(), "Door is open.")
+
+        self.assertGreater(
+            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            "Door open duration has been reached.")
+
+        self.assertLess(
+            ftr.GetRuntime(), DOOR_MOVE_UP_TIME * 1.4,
+            "Door open duration is below upper limit.")
+
+    def test_OpenDoorByContact(self):
+        #ctrl.board.door_state = DOOR_CLOSED
+        #with GPIO.write_context():
+        #    GPIO.output(REED_LOWER, REED_CLOSED)
+        ftr = self.OpenDoorTest()
+
+        with GPIO.write_context():
+            GPIO.output(REED_LOWER, REED_OPENED) # Kontakt unten offen
+            GPIO.output(REED_UPPER, REED_CLOSED) # Kontakt oben geschlossen
+
+        self.assertTrue(ftr.WaitForResult(), "Door is open.")
+
+        self.assertLess(
+            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            "Door open duration has not been reached due to contact.")
+
+    def CloseDoorTest(self):
+        ctrl = self.controller
+        ctrl.board.door_state = DOOR_OPEN
+        with GPIO.write_context():
+            GPIO.output(REED_UPPER, REED_CLOSED) # Kontakt oben geschlossen
+            GPIO.output(REED_LOWER, REED_OPENED) # Kontakt unten offen
+
+        ftr = base.Future(ctrl.CloseDoor)
+        self.assertTrue(ftr.WaitForExectionStart(0.5), "Door close command is running.")
+
+        with self.assertRaises(TimeoutError):
+            ftr.WaitForResult(2)
+
+        with GPIO.write_context():
+            motor_on = GPIO.input(MOTOR_ON)
+            move_dir = GPIO.input(MOVE_DIR)
+
+        self.assertEqual(ctrl.automatic, DOOR_AUTO_OFF, "Door automatic is temporary disabled.")
+        self.assertEqual(motor_on, RELAIS_ON, "Motor is running.")
+        self.assertEqual(move_dir, MOVE_DOWN, "Door is moving down.")
+        self.assertTrue(ctrl.board.IsDoorMoving(), "Door state is 'moving'.")
+        return ftr
+
+    def test_CloseDoorByTime(self):
+        ftr = self.CloseDoorTest()
+        self.assertTrue(ftr.WaitForResult(), "Door is closed.")
+
+        self.assertGreater(
+            ftr.GetRuntime(), DOOR_MOVE_DOWN_TIME,
+            "Door close duration has been reached.")
+
+        self.assertLess(
+            ftr.GetRuntime(), DOOR_MOVE_DOWN_TIME * 1.5,
+            "Door close duration is below upper limit.")
+
+    def test_CloseDoorByContact(self):
+        ftr = self.CloseDoorTest()
+        with GPIO.write_context():
+            GPIO.output(REED_LOWER, REED_CLOSED) # Kontakt oben offen
+            GPIO.output(REED_UPPER, REED_OPENED) # Kontakt unten geschlossen
+
+        self.assertTrue(ftr.WaitForResult(), "Door is closed.")
+
+        self.assertLess(
+            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            "Door close duration has not been reached due to contact.")
 # ---------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    test()
+    unittest.main()

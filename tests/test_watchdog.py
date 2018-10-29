@@ -1,14 +1,14 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# pylint: disable=C0413, C0111, C0103, W0212
 import os
-import time
-import datetime
 import subprocess
-from base import * # pylint: disable=W0614
-from config import *  # pylint: disable=W0614
+import unittest
+from tests import base
+from config import * # pylint: disable=W0614; unused import
 import watchdog
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class popenDummy():
 
     SIGNAL_RAISE = 0
@@ -52,7 +52,7 @@ class popenDummy():
         return self._name
 
     __repr__ = __str__
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class subprocessDummy():
 
     def __init__(self):
@@ -77,57 +77,90 @@ class subprocessDummy():
     def list2cmdline(self, cmdline):
         return subprocess.list2cmdline(cmdline)
 
-    def Popen(self, cmdargs, *args, **kwargs):
+    def Popen(self, cmdargs, *_args, **_kwargs):
         p = popenDummy(self, cmdargs[-1])
         return p
-# ---------------------------------------------------------------------------------------
-@testfunction
-def test():
-    sd = subprocessDummy()
-    watchdog.subprocess = sd
-    w = watchdog.Watchdog(scripts = ['a', 'b', 'c'])
-    w.loop_time = 0.5
-    f = Future(w)
-    check(f.WaitForExectionStart(1), "Future starts within time.")
+# --------------------------------------------------------------------------------------------------
+class Test_TestWatchdog(base.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.sd = subprocessDummy()
+        watchdog.subprocess = self.sd
+        self.watchdog = watchdog.Watchdog(scripts = ['a', 'b', 'c'])
+        self.watchdog.loop_time = 0.5
+        self.ftr = base.Future(self.watchdog) # hier startet jetzt der Watchdog-Thread
 
-    try:
-        time.sleep(3.0)
-        check(len(w.processes) == 3, "All processes have been started: %s", w.processes)
-        time.sleep(1.0)
-        check(len(w.processes) == 3, "All processes are still running: %s", w.processes)
-        p = sd.GetByName('b')
+    def tearDown(self):
+        super().tearDown()
+        self.watchdog.Terminate()
+        self.ftr.WaitForResult()
+
+    def test_Watchdog(self):
+        self.assertTrue(self.ftr.WaitForExectionStart(1), "Future starts within time.")
+        self.ftr.Join(3.0) # die Prozesse starten im Abstand von einer Sekunde!
+        self.assertEqual(
+            len(self.watchdog.processes), 3,
+            "All processes have been started: {}".format(self.watchdog.processes)
+        )
+        self.ftr.Join(1.0)
+        self.assertEqual(
+            len(self.watchdog.processes), 3,
+            "All processes are still running: {}".format(self.watchdog.processes)
+        )
+        p = self.sd.GetByName('b')
         p_pid = p.pid
         p._set_exitcode(popenDummy.EXITCODE_FINISHED)
-        time.sleep(1)
-        check(p not in w.processes, "Termination of process %r has been detected.", p)
-        time.sleep(1)
-        p = sd.GetByName('b')
-        check(p.pid != p_pid, "Process %r has been restarted (PID check)", p)
-        check(p in w.processes, "Process %r has been restarted (set check)", p)
-        procs = list(sd._processes.values())
+        self.ftr.Join(1.0)
+
+        self.assertNotIn(
+            p, self.watchdog.processes,
+            "Termination of process {} not detected.".format(p)
+        )
+
+        self.ftr.Join(1.0)
+        p = self.sd.GetByName('b')
+        self.assertFalse(p.pid == p_pid, "Process {} has been restarted (PID check)".format(p))
+        self.assertIn(
+            p, self.watchdog.processes,
+            "Process {} has been restarted (set check)".format(p)
+        )
+
+        procs = list(self.sd._processes.values())
         for p in procs:
             p._set_exitcode(popenDummy.EXITCODE_FINISHED)
-        time.sleep(1)
+        self.ftr.Join(1.0)
         r = True
         for p in procs:
-            r &= (p not in w.processes)
-        check(r, "Termination of all processes has been detected.")
-        time.sleep(1)
-        check(len(w.processes) == 3, "All processes have been restarted.")
-        p = sd.GetByName('a')
-        p._send_signal = popenDummy.SIGNAL_RAISE
-        procs = list(sd._processes.values())
-    finally:
-        w.Terminate()
-        f.WaitForResult()
+            r &= (p not in self.watchdog.processes)
+        self.assertTrue(r, "Termination of all processes has been detected.")
 
-    check(len(w.processes) == 0, "All processes have been removed: %s", w.processes)
-    for p in procs:
-        if p._name == 'a':
-            check(p.poll() == popenDummy.EXITCODE_KILL, "Process %r has been killed.", p)
-        else:
-            check(p.poll() == popenDummy.EXITCODE_SIGNAL, "Process %r was signaled with SIGINT.", p)
-    return True
-# ---------------------------------------------------------------------------------------
+        self.ftr.Join(1.0)
+        self.assertEqual(len(self.watchdog.processes), 3, "All processes have been restarted.")
+
+        p = self.sd.GetByName('a')
+        p._send_signal = popenDummy.SIGNAL_RAISE
+        procs = list(self.sd._processes.values())
+
+        self.watchdog.Terminate()
+        self.ftr.WaitForResult()
+
+        self.assertEqual(
+            len(self.watchdog.processes), 0,
+            "All processes have been removed: {}".format(self.watchdog.processes)
+        )
+
+        for p in procs:
+            if p._name == 'a':
+                self.assertEqual(
+                    p.poll(), popenDummy.EXITCODE_KILL,
+                    "Process {} has been killed.".format(p)
+                )
+            else:
+                self.assertEqual(
+                    p.poll(), popenDummy.EXITCODE_SIGNAL,
+                    "Process {} was signaled with SIGINT.".format(p)
+                )
+        return True
+# --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    test()
+    unittest.main()

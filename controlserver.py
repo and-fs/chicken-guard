@@ -107,7 +107,7 @@ class JobTimer(LoggableClass):
                         # aus und führen wir diese erst beim nächsten Mal durch, das reicht aus.
                         self.info("Skipped light switch times calculation due to beeing currently in light interval.")
                         can_calculate = False
-                        
+
                 if can_calculate:
                     # jetzt ermitteln wir die Einschaltzeit für die Innenbeleuchtung
                     for item in next_steps:
@@ -172,7 +172,7 @@ class JobTimer(LoggableClass):
         while not self.ShouldTerminate():
             now = time.time()
             dtnow = datetime.datetime.now()
-            
+
             # Öffnen / Schließen berechnen
             (open_time, close_time) = self.DoSunriseCheck(dtnow, now, open_time, close_time)
 
@@ -202,7 +202,11 @@ class Controller(LoggableClass):
     """
     Gateway zum Board.
     """
-    def __init__(self):
+    def __init__(self, start_jobs = True):
+        """
+        :param start_jobs: Gibt an, ob der :class:`JobTimer` gestartet
+            werden soll.
+        """
         LoggableClass.__init__(self, name = "Controller")
         self.board = board.Board()
 
@@ -230,7 +234,8 @@ class Controller(LoggableClass):
         self.board.SetStateChangeHandler(self._BoardStateChanged)
 
         self.job_timer = JobTimer(self)
-        self.job_timer.Start()
+        if start_jobs:
+            self.job_timer.Start()
 
     def SetNextActions(self, actions):
         self.logger.debug("Received next actions list: %s", actions)

@@ -1,0 +1,28 @@
+{
+    "python.pythonPath": "D:\\Program Files\\Python35\\python.exe",
+    "python.unitTest.unittestEnabled": true,
+    "python.unitTest.pyTestEnabled": false,
+    "python.unitTest.nosetestsEnabled": false,
+    "files.trimTrailingWhitespace": true,
+    "python.unitTest.unittestArgs": [
+        "-v",
+        "-f",
+        "-s",
+        ".",
+        "-p",
+        "*test*.py"
+    ],
+    "editor.rulers": [
+        80,
+        100
+    ],
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/__pycache__": true,
+        "**/.git*": true,
+    }
+}
