@@ -1,19 +1,19 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 import threading
 import os
-import math
 import time
 import json
 from shared import LoggableClass, resource_path
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 def analogToCelsius(analog_value):
     """
     Rechnet den vom Thermistor des PCF8591 gelieferten Analogwert in Grad Celsius um.
-    Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben.
+    Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben,
+    da der Sensor nicht funktioniert.
     """
     return float(analog_value)
     # nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
@@ -21,7 +21,7 @@ def analogToCelsius(analog_value):
     # calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
     # temp = 1.0 / (1.0 / nominal_temp + 1.0 / material_constant * math.log(analog_value / calibration_value))
     # return temp - 273.15
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class Sensors(LoggableClass):
     """
     Diese Klasse dient zum Auslesen des Multisensors PCF8591 an I2C #0
@@ -93,7 +93,7 @@ class Sensors(LoggableClass):
 
     def CleanUp(self):
         self._bus.close()
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class Board(LoggableClass):
     """
     Bildet die wesentliche Steuerung am Board ab.
