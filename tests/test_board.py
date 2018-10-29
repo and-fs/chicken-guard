@@ -63,7 +63,7 @@ class Test_TestBoard(base.TestCase):
         with GPIO.write_context():
             GPIO.output(REED_UPPER, REED_CLOSED) # oben auf LOW
 
-        ftr.WaitForResult(0.5)
+        ftr.WaitForResult(0.5 + UPPER_REED_OFFSET)
 
         self.assertTrue(ftr.HasResult(), "OpenDoor() is finished.")
         self.assertTrue(_GetSaveState(), "Board state has been saved.")
@@ -111,7 +111,7 @@ class Test_TestBoard(base.TestCase):
         with GPIO.write_context():
             GPIO.output(REED_LOWER, REED_CLOSED) # unten auf LOW
 
-        ftr.WaitForResult(1.0) # anderen Thread ranlassen
+        ftr.WaitForResult(0.5 + LOWER_REED_OFFSET) # anderen Thread ranlassen
 
         self.assertTrue(ftr.HasResult(), "CloseDoor() is finished.")
 
