@@ -9,6 +9,9 @@ import time
 import pathlib
 import threading
 import unittest
+import warnings
+# --------------------------------------------------------------------------------------------------
+warnings.filterwarnings('ignore', r'.*using a (GPIO|SMBUS) mockup.*')
 # --------------------------------------------------------------------------------------------------
 if str(pathlib.Path(__file__).parent.parent) not in sys.path:
     sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
