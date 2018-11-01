@@ -13,7 +13,7 @@ except ImportError:
 try:
     from smbus import SMBus
 except ImportError:
-    warnings.warn("Using a dummy for SMBus!")
+    warnings.warn("You're currently using a SMBUS mockup!")
 
     class SMBus(object):
         def __init__(self, i2c_device):

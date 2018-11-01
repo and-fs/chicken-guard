@@ -3,81 +3,67 @@
 """
 Test-Basis-Modul, immer als erstes importieren!
 """
-# ---------------------------------------------------------------------------------------
-import pathlib, sys
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+# --------------------------------------------------------------------------------------------------
+import sys
+import time
+import pathlib
 import threading
-# ---------------------------------------------------------------------------------------
-from config import *
-CATCH_TEST_ERRORS = True
-results = {'fail': 0, 'ok': 0, 'total': 0}
-# ---------------------------------------------------------------------------------------
+import unittest
+import warnings
+# --------------------------------------------------------------------------------------------------
+warnings.filterwarnings('ignore', r'.*using a (GPIO|SMBUS) mockup.*')
+# --------------------------------------------------------------------------------------------------
+if str(pathlib.Path(__file__).parent.parent) not in sys.path:
+    sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+# --------------------------------------------------------------------------------------------------
+from config import * # pylint: disable=W0614,W0401
 import shared
-logger = shared.getLogger("test")
 from gpio import GPIO
-# ---------------------------------------------------------------------------------------
-class TestError(Exception):
-    def __init__(self, message, *args):
-        Exception.__init__(self, message % args)
-# ---------------------------------------------------------------------------------------
-def testfunction(fu):
-    """
-    Dekorator für Testfunktionen.
+# --------------------------------------------------------------------------------------------------
+logger = shared.getLogger("test")
+# --------------------------------------------------------------------------------------------------
+class TestCase(unittest.TestCase):
+    def setUp(self):
+        logger.info("*** %r is starting.", self._testMethodName)
 
-    Wenn CATCH_TEST_ERRORS mit Wahr evaluiert, werden Exceptions
-    von diesem Typ abgefangen und nur als Fail ausgegeben, der Test
-    ist dann aber trotzdem beendet.
+    def tearDown(self):
+        logger.info("*** %r has finished.", self._testMethodName)
 
-    Alle anderen Exceptions werden nicht behandelt.
-    Im Falle einer abgefangen TestError-Exception ist der Rückgabewert
-    der dekorierten Funktion immer `False`.
-    """
-    def call(*args, **kwargs):
-        res_before = results.copy()
-        print ("-" * 80)
-        print ("Starting test (%s)" % (fu.__code__.co_filename,))
-        try:
-            result = fu(*args, **kwargs)
-        except TestError as e:
-            result = False
-            print ("Test failed:", e)
-            logger.error("Test failed: %s", e)
-            if not CATCH_TEST_ERRORS:
-                raise
-        for k in ('total', 'ok', 'fail'):
-            res_before[k] = results[k] - res_before[k]
-        msg = "{ok} of {total} succeeded, {fail} failed.".format(**res_before)
-        if result:
-            print ("SUCCEEDED:", msg)
-            logger.info("SUCCEEDED: %s", msg)
-        else:
-            print ("FAILED:", msg)
-            logger.error("FAILED: %s", msg)
-        return result
-    return call
-# ---------------------------------------------------------------------------------------
-def check(condition, message, *args):
-    """
-    Prüft die Bedingung `condition` auf `True`.
-    Wenn erfüllt, wird die Nachricht mit dem Prefix `OK` ausgegeben,
-    sonst `Fail`. In letzterem Fall wird ein TestError ausgelöst.
+    def assertTrue(self, expr, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertTrue(expr, msg = msg)
 
-    :param condition: Bedingung zur Erfüllung des Tests, wird als Bool evaluiert.
+    def assertFalse(self, expr, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertFalse(expr, msg = msg)
 
-    :param message: Nachricht zum Testschritt (was wurde erwartet).
-            Wird mit `args` substituiert, falls angegeben.
-    """
-    results['total'] += 1
-    if condition:
-        results['ok'] += 1
-        print ('[OK] ' + (message % args))
-        logger.info(message, *args)
-    else:
-        results['fail'] += 1
-        print ('[FAIL] ' + (message % args))
-        logger.error(message, *args)
-        raise TestError(message, *args)
-# ---------------------------------------------------------------------------------------
+    def assertEqual(self, first, second, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertEqual(first, second, msg = msg)
+
+    def assertLess(self, a, b, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertLess(a, b, msg = msg)
+
+    def assertGreater(self, a, b, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertGreater(a, b, msg = msg)
+
+    def assertNotIn(self, member, container, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertNotIn(member, container, msg = msg)
+
+    def assertIn(self, member, container, msg = None):
+        if msg:
+            logger.info(msg)
+        return super().assertIn(member, container, msg = msg)
+# --------------------------------------------------------------------------------------------------
 def SetInitialGPIOState():
     """
     Setzt den initialen GPIO-Status für die Tests.
@@ -90,15 +76,15 @@ def SetInitialGPIOState():
         GPIO.output(REED_UPPER, REED_OPENED)
         GPIO.output(REED_LOWER, REED_CLOSED) # Tür geschlossen
         GPIO.output(SHUTDOWN_BUTTON, 1)
-# ---------------------------------------------------------------------------------------
-class Future(object):
+# --------------------------------------------------------------------------------------------------
+class Future:
     """
     Future-Implementierung für die Tests.
     Führt eine Funktion nebenläufig aus, das Ergebnis kann
     dann zu einem späteren Zeitpunkt abgefragt werden.
 
     Beispiel:
-    
+
     .. code-block:: python
 
         import time
@@ -113,6 +99,7 @@ class Future(object):
         print (f.WaitForResult(2.0)) # "10 * 10 is 100"
 
     """
+
     def __init__(self, function, *args, **kwargs):
         """
         Initializes the future with a reference to
@@ -126,6 +113,8 @@ class Future(object):
         self.condition = threading.Condition()
         self.start_cond = threading.Condition()
         self.started = False
+        self.start_time = None
+        self.end_time = None
         self.thread = threading.Thread(target = self._Execute, args = args, kwargs = kwargs)
         self.thread.start()
 
@@ -133,13 +122,25 @@ class Future(object):
         with self.start_cond:
             self.started = True
             self.start_cond.notify_all()
+        self.start_time = time.time()
         try:
             result = self.function(*args, **kwargs)
-        except Exception as e:
+        except Exception as e: # pylint: disable=W0703
             result = e
+        self.end_time = time.time()
         with self.condition:
-            self.result = result
+            self.result = result # pylint: disable=W0201
             self.condition.notify_all()
+
+    def GetRuntime(self):
+        """
+        Gibt die Laufzeit der gekapselten Funkton zurück.
+        Sollte diese nicht gestartet oder noch nicht beendet sein,
+        ist der Rückgabewert ``None``.
+        """
+        if not ((self.start_time is None) or (self.end_time is None)):
+            return self.end_time - self.start_time
+        return None
 
     def WaitForExectionStart(self, waittime: float = None) -> bool:
         """
@@ -181,4 +182,11 @@ class Future(object):
             if hasattr(self, 'result'):
                 return self.result
             raise TimeoutError
+
+    def Join(self, waittime = None):
+        """
+        Wartet die angegebene Zeit (Sekunden) am Thread.
+        """
+        with self.condition:
+            self.condition.wait(waittime)
 # ---------------------------------------------------------------------------------------

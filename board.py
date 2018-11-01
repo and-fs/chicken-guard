@@ -1,19 +1,19 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 import threading
 import os
-import math
 import time
 import json
 from shared import LoggableClass, resource_path
 from gpio import GPIO, SMBus
 from config import * # pylint: disable=W0614
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 def analogToCelsius(analog_value):
     """
     Rechnet den vom Thermistor des PCF8591 gelieferten Analogwert in Grad Celsius um.
-    Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben.
+    Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben,
+    da der Sensor nicht funktioniert.
     """
     return float(analog_value)
     # nominal_temp = 298.15      # Nenntemperatur des Thermistor (Datenblatt, in Kelvin)
@@ -21,13 +21,13 @@ def analogToCelsius(analog_value):
     # calibration_value = 127.0  # ausgelesener Wert bei Nennemperatur (nominal_temp)
     # temp = 1.0 / (1.0 / nominal_temp + 1.0 / material_constant * math.log(analog_value / calibration_value))
     # return temp - 273.15
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class Sensors(LoggableClass):
     """
     Diese Klasse dient zum Auslesen des Multisensors PCF8591 an I2C #0
     auf PIN #3 (SDA) und PIN #4 (SCL).
     """
-    
+
     SMBUS_ADDR = 0x48       # Adresse des I2C-Device (PCF8591 an I2C 0, PIN 3 / 5 bei ALT0 = SDA / SCL)
     SMBUS_CH_LIGHT = 0x40   # Kanal des Fotowiderstand (je kleiner der Wert desto heller)
     SMBUS_CH_AIN  = 0x41    # AIN
@@ -93,7 +93,7 @@ class Sensors(LoggableClass):
 
     def CleanUp(self):
         self._bus.close()
-# ---------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class Board(LoggableClass):
     """
     Bildet die wesentliche Steuerung am Board ab.
@@ -101,7 +101,7 @@ class Board(LoggableClass):
 
     def __init__(self):
         LoggableClass.__init__(self, name = "Board")
-        
+
         self.door_state = DOOR_NOT_MOVING
         self.light_state_indoor = False
         self.light_state_outdoor = False
@@ -118,7 +118,7 @@ class Board(LoggableClass):
         self.state_file = resource_path.joinpath(BOARDFILE)
 
         GPIO.setmode(GPIO.BOARD)
-        
+
         self.logger.debug("Settings pins %s to OUT.", OUTPUT_PINS)
         GPIO.setup(OUTPUT_PINS, GPIO.OUT, initial = RELAIS_OFF)
 
@@ -139,12 +139,12 @@ class Board(LoggableClass):
         loaded = self.Load()
         # dann den oberen Magnetkontakt prüfen
         door_is_open = self.IsReedClosed(REED_UPPER)
-        # wenn der letzte Zustand geladen wurde UND der obere Magnetkontakt 
+        # wenn der letzte Zustand geladen wurde UND der obere Magnetkontakt
         # nicht geschlossen ist, dann nehmen wir den gespeicherten Zustand
         if loaded and (not door_is_open):
             door_is_open = 0 != (self.door_state & DOOR_OPEN)
         self.door_state = DOOR_OPEN if door_is_open else DOOR_CLOSED
-        
+
     def Save(self):
         try:
             with self.state_file.open('w') as f:
@@ -277,7 +277,7 @@ class Board(LoggableClass):
         if not can_move:
             self.error("Cannot move %s, door is already there!", str_dir)
             return False
- 
+
         if self.IsDoorMoving():
             self.error("Cannot move door, already moving!")
             return False
@@ -297,7 +297,7 @@ class Board(LoggableClass):
             self.info("Reed %s has been closed.", str_dir)
             time.sleep(reed_offset)
         else:
-            self.warn("Reed %s not closed, reached timeout.", str_dir)
+            self.warning("Reed %s not closed, reached timeout.", str_dir)
 
         self.StopMotor(end_state)
         return True
@@ -328,7 +328,7 @@ class Board(LoggableClass):
     def IsDoorClosed(self):
         if not self.IsReedClosed(REED_LOWER):
             return 0 != (self.door_state & DOOR_CLOSED)
-        return True  
+        return True
 
     def IsDoorMoving(self):
         return 0 != (self.door_state & DOOR_MOVING)

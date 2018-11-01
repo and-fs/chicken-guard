@@ -105,3 +105,6 @@ venv.bak/
 /log
 /resources/sunset.data
 /resources/pics
+
+.vscode/launch.json
+resources/sensor.csv

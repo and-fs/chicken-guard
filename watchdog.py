@@ -13,7 +13,7 @@ Das sind:
 Beispiel:
 
 .. highlight::
-    # Initialisieren mit foo und bar Skripten aus dem 
+    # Initialisieren mit foo und bar Skripten aus dem
     # selben Verzeichnis
     w = Watchdog(scripts = ['foo.py', 'bar.py])
     w()
@@ -28,7 +28,7 @@ import time
 from shared import LoggableClass, root_path
 # ------------------------------------------------------------------------
 #: Liste mit den zu startenden und überwachenden Python-Scripts.
-_scripts = ['controlserver.py', 'cameraserver.py', 'tftcontrol.py']
+_scripts = ('controlserver.py', 'cameraserver.py', 'tftcontrol.py')
 
 #: SIGINT funktioniert unter Windows nicht, aber auch dort
 #: gibt es nur CLTR_C_EVENT, also nehmen wir das wenn verfügbar.
@@ -39,7 +39,7 @@ class Watchdog(LoggableClass):
     def __init__(self, scripts = _scripts):
         """
         Initialisiert die Instanz.
-        :param list _scripts: Eine Liste von Python-Script-Dateinamen
+        :param sequence _scripts: Eine Liste von Python-Script-Dateinamen
             (inklusive Endung) relativ zu :py:data:`root_path`.
             Diese werden beim Aufruf von :py:meth:`__call__` gestartet
             und überwacht.
@@ -50,7 +50,7 @@ class Watchdog(LoggableClass):
         #: Die Wartezeit nach Ende jeder Loop.
         self.loop_time = 5.0
         #: Liste mit den zu startenden und überwachenden Python-Scripts.
-        self.scripts = scripts
+        self.scripts = list(scripts)
         #: Run-Flag, kann auf Fals gesetzt werden um die Loop zu beenden.
         self._run = True
 
@@ -66,7 +66,7 @@ class Watchdog(LoggableClass):
         self.info("Starting %s", subprocess.list2cmdline(cmdline))
         try:
             p = subprocess.Popen(cmdline)
-        except Exception as e:
+        except Exception as e: # pylint: disable=W0703
             self.error("Could not start '%s': %s", subprocess.list2cmdline(cmdline), e)
             return None
         p.name = scriptname
@@ -116,8 +116,10 @@ class Watchdog(LoggableClass):
             failed = set() # hier kommen die PIDs der fehlgeschlagenen Prozesse rein
             for p in self.processes:
                 exitcode = p.poll()
-                if exitcode != None:
-                    self.warn("Process '%s' with PID %d terminated with exitcode %s, starting again.", p.name, p.pid, exitcode)
+                if exitcode is not None:
+                    self.warning(
+                        "Process '%s' with PID %d terminated with exitcode %s, starting again.",
+                        p.name, p.pid, exitcode)
                     failed.add(p)
                     needs_restart.add(p.name)
 
@@ -125,14 +127,16 @@ class Watchdog(LoggableClass):
             self.processes.difference_update(failed)
 
             # und wieder neu starten. im vorigen Lauf fehlgeschlagene auch wieder starten
-            for name in needs_restart.copy():         # wir nehmen eine Kopie, da wir das set in der Loop ändern
-                p = self.StartSingle(name)            # jetzt starten
-                if (p != None) and p.poll() is None:  # hat es geklappt?
-                    needs_restart.discard(name)       # ja, also aus der Menge der zu startenden entfernen
-                    self.processes.add(p)             # und den laufenden hinzufügen
+            for name in needs_restart.copy():             # wir nehmen eine Kopie, da wir das set
+                                                          # in der Loop ändern
+                p = self.StartSingle(name)                # jetzt starten
+                if (p is not None) and p.poll() is None:  # hat es geklappt?
+                    needs_restart.discard(name)           # ja, also aus der Menge der zu
+                                                          # startenden entfernen
+                    self.processes.add(p)                 # und den laufenden hinzufügen
                 else:
                     # nein, also Warnung ausgeben und später erneut versuchen
-                    self.warn("Failed to start '%s', tryiing again later.", name)
+                    self.warning("Failed to start '%s', tryiing again later.", name)
 
             # die Wartezeit halten wir immer ein, da es hier nichts macht, wenn mal längere
             # Zeit ein Skript nicht läuft.
@@ -141,19 +145,25 @@ class Watchdog(LoggableClass):
         self.info("Finished.")
         return True
 
-    def _CheckExitCode(self, p):
-        exitcode = p.poll()
+    def _CheckExitCode(self, process):
+        exitcode = process.poll()
         if not exitcode is None:
-            self.info("Process '%s' with PID %d has finished with exitcode %d.", p.name, p.pid, exitcode)
-            self.processes.discard(p)
+            self.info(
+                "Process '%s' with PID %d has finished with exitcode %d.",
+                process.name, process.pid, exitcode
+            )
+            self.processes.discard(process)
 
-    def _Kill(self, p):
+    def _Kill(self, process):
         try:
-            p.kill()
-        except Exception as e:
-            self.error("Failed to send SIGKILL to '%s' with PID %d: %s", p.name, p.pid, e)
+            process.kill()
+        except Exception as e: # pylint: disable=W0703
+            self.error(
+                "Failed to send SIGKILL to '%s' with PID %d: %s",
+                process.name, process.pid, e
+            )
         else:
-            self.info("Killed '%s' with PID %d.", p.name, p.pid)
+            self.info("Killed '%s' with PID %d.", process.name, process.pid)
             return True
         return False
 
@@ -173,7 +183,7 @@ class Watchdog(LoggableClass):
                 if exitcode is None:
                     try:
                         p.send_signal(SIGINT)
-                    except Exception as e:
+                    except Exception as e: # pylint: disable=W0703
                         self.error("Failed to send SIGINT to '%s' with PID %d: %s", p.name, p.pid, e)
                         self._Kill(p)
                     else:
@@ -192,14 +202,17 @@ class Watchdog(LoggableClass):
 
             # alle die jetzt noch da sind, werden gekillt (wenn möglich)
             if self.processes:
-                self.warn("Following processes are still running, will try to kill again: %s", ', '.join(p.name for p in self.processes))
+                self.warn(
+                    "Following processes are still running, will try to kill again: %s",
+                    ', '.join(p.name for p in self.processes)
+                )
                 for p in self.processes.copy():
                     if self._Kill(p):
                         self._CheckExitCode(p)
                 if self.processes:
                     self.error("Finally failed to kill all processes, exiting now.")
                     self.processes.clear()
-        except Exception:
+        except Exception: # pylint: disable=W0703
             self.exception("Error during cleanup.")
 
     def Terminate(self):
@@ -214,7 +227,7 @@ class Watchdog(LoggableClass):
             self.Run()
         except KeyboardInterrupt:
             self.info("Catched Keyboardinterrupt, stopped.")
-        except Exception:
+        except Exception: # pylint: disable=W0703
             self.exception("Unhandled error!")
         finally:
             self.Cleanup()
