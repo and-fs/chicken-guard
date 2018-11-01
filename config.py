@@ -5,7 +5,7 @@ Alle hier verwendeten PINs beziehen sich auf den BOARD-Mode,
 also die RPi-Nummerierung am Header.
 """
 # ------------------------------------------------------------------------
-DEBUG = True
+DEBUG = False
 # ------------------------------------------------------------------------
 LOGDIR = 'log'               #: Log-Verzeichnis relativ zu www (root)
 RESOURCEDIR = 'resources'    #: Resourcen-Verzeichnis relativ zu www (root)
@@ -15,16 +15,17 @@ BOARDFILE = 'board.json'     #: Name der Datei in der der Boardstatus
                              #: gespeichert wird (relativ zur 'RESOURCEDIR')
 SENSORFILE = 'sensor.csv'    #: Sensorwerte, relativ zu RESOURCEDIR
 # ------------------------------------------------------------------------
-#: Template für die Logausgabe (siehe logging - Modul)
-LOGFORMAT = '%(asctime)s %(name)-20s %(thread)-10d %(levelname)-8s %(message)s'
-
 if DEBUG:
+    #: Template für die Logausgabe (siehe logging - Modul)
+    LOGFORMAT = '%(asctime)s %(name)-20s %(thread)-10d %(levelname)-8s %(message)s'
+
     #: Template für das Zeitformat der Logausgabe (siehe logging - Modul)
     LOGDATEFMT = ''
 
     #: Logging Level, 10 = logging.DEBUG
     LOGLEVEL = 10
 else:
+    LOGFORMAT = '%(asctime)s %(name)-20s %(levelname)-8s %(message)s'
     LOGDATEFMT = '%m-%d %H:%M:%S'
     LOGLEVEL = 20 # logging.INFO
 # ------------------------------------------------------------------------
@@ -127,11 +128,11 @@ DUSK_OFFSET = 40 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
-    0: (5, 30), # Montag
-    1: (5, 30),
-    2: (5, 30),
-    3: (5, 30),
-    4: (5, 30),
+    0: (7, 00), # Montag
+    1: (7, 00),
+    2: (7, 00), 
+    3: (7, 00),
+    4: (7, 00),
     5: (8, 00), # Samstag
     6: (8, 00), # Sonntag
 }
@@ -144,7 +145,7 @@ DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN #: Tür in Bewegung
 DOOR_OPEN = 4          #: Tür ist offen
 DOOR_CLOSED = 8        #: Tür ist geschlossen
 # ------------------------------------------------------------------------
-DOOR_MOVE_UP_TIME = 7.6    #: Maximale Zeit die die Tür zum Öffnen benötigt
+DOOR_MOVE_UP_TIME = 8.5    #: Maximale Zeit die die Tür zum Öffnen benötigt
 DOOR_MOVE_DOWN_TIME = 6.6  #: Maximale Zeit zum Schließen der Tür (Sekunden)
 LOWER_REED_OFFSET = 0.6    #: Dauer in Sekunden die die Tür nach Signalisierung
                            #: durch den unteren Magnetschalter weiter läuft,
