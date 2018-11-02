@@ -1,10 +1,18 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 # --------------------------------------------------------------------------------------------------
-# pylint: disable=E0602
+# pylint: disable=E0602,W0212,C0103,C0111,C0413,R0915
 import unittest
 import time
 import datetime
+# --------------------------------------------------------------------------------------------------
+def _SetupPath():
+    import sys
+    import pathlib
+    root = str(pathlib.Path(__file__).parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+_SetupPath()
 # --------------------------------------------------------------------------------------------------
 from config import *  # pylint: disable=W0614
 import base
@@ -12,7 +20,7 @@ import controlserver
 # --------------------------------------------------------------------------------------------------
 logger = base.logger
 # --------------------------------------------------------------------------------------------------
-class ControllerDummy(object):
+class ControllerDummy:
     def __init__(self):
         self.door_closed = False
         self.actions = []
@@ -60,7 +68,7 @@ class Test_JobTimer(base.TestCase):
         self.assertFalse(timer.ShouldTerminate(), "Termination flag is initially cleared.")
         timer.Terminate()
         self.assertTrue(timer.ShouldTerminate(), "Termination flag is set.")
-        timer.terminate = False # und wieder zurücksetzen
+        timer._terminate = False # und wieder zurücksetzen
 
         timer.Start()
         # kurz warten damit der Thread anlaufen kann

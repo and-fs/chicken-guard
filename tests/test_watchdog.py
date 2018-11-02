@@ -2,10 +2,19 @@
 # -*- coding: utf8 -*-
 # --------------------------------------------------------------------------------------------------
 # pylint: disable=C0413, C0111, C0103, W0212
+# --------------------------------------------------------------------------------------------------
+def _SetupPath():
+    import sys
+    import pathlib
+    root = str(pathlib.Path(__file__).parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+_SetupPath()
+# --------------------------------------------------------------------------------------------------
 import os
 import subprocess
 import unittest
-from tests import base
+import base
 from config import * # pylint: disable=W0614; unused import
 import watchdog
 # --------------------------------------------------------------------------------------------------
