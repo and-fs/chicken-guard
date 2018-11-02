@@ -1,0 +1,544 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="de">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>tests package &#8212; chicken-guard 0.9 Dokumentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Stichwortverzeichnis" href="genindex.html" />
+    <link rel="search" title="Suche" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="tests-package">
+<h1>tests package<a class="headerlink" href="#tests-package" title="Link zu dieser Überschrift">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link zu dieser Überschrift">¶</a></h2>
+</div>
+<div class="section" id="module-tests.base">
+<span id="tests-base-module"></span><h2>tests.base module<a class="headerlink" href="#module-tests.base" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Test-Basis-Modul, immer als erstes importieren!</p>
+<dl class="class">
+<dt id="tests.base.Future">
+<em class="property">class </em><code class="descclassname">tests.base.</code><code class="descname">Future</code><span class="sig-paren">(</span><em>function</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.Future" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Future-Implementierung für die Tests.
+Führt eine Funktion nebenläufig aus, das Ergebnis kann
+dann zu einem späteren Zeitpunkt abgefragt werden.</p>
+<p>Beispiel:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="k">def</span> <span class="nf">time_consuming_pow2</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> * </span><span class="si">%d</span><span class="s2"> is </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">a</span> <span class="o">*</span> <span class="n">a</span><span class="p">)</span>
+
+<span class="n">f</span> <span class="o">=</span> <span class="n">Future</span><span class="p">(</span><span class="n">time_consuming_pow2</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="k">print</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">HasResult</span><span class="p">())</span> <span class="c1"># False</span>
+<span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="k">print</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">HasResult</span><span class="p">())</span> <span class="c1"># False</span>
+<span class="k">print</span> <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">WaitForResult</span><span class="p">(</span><span class="mf">2.0</span><span class="p">))</span> <span class="c1"># &quot;10 * 10 is 100&quot;</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="tests.base.Future.GetRuntime">
+<code class="descname">GetRuntime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.Future.GetRuntime" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt die Laufzeit der gekapselten Funkton zurück.
+Sollte diese nicht gestartet oder noch nicht beendet sein,
+ist der Rückgabewert <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.Future.HasResult">
+<code class="descname">HasResult</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#tests.base.Future.HasResult" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Returns if the result of the contained function is
+available.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.Future.Join">
+<code class="descname">Join</code><span class="sig-paren">(</span><em>waittime=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.Future.Join" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Wartet die angegebene Zeit (Sekunden) am Thread.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.Future.WaitForExectionStart">
+<code class="descname">WaitForExectionStart</code><span class="sig-paren">(</span><em>waittime: float = None</em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#tests.base.Future.WaitForExectionStart" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Waits for the execution thread to start.</p>
+<p>Returns as soon as the execution of the contained
+function has been started or the waittime (in seconds or
+fractions thereof) has been reached.</p>
+<dl class="docutils">
+<dt>Returns:</dt>
+<dd>If the execution thread has been started within
+given time.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.Future.WaitForResult">
+<code class="descname">WaitForResult</code><span class="sig-paren">(</span><em>waittime=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.Future.WaitForResult" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Waits <cite>waittime</cite> seconds (or fractions thereof)
+for the contained function to be executed and
+returns it’s result.</p>
+<p>If waittime has been reached without getting
+a result, a TimeoutError is raised.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="tests.base.SetInitialGPIOState">
+<code class="descclassname">tests.base.</code><code class="descname">SetInitialGPIOState</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.SetInitialGPIOState" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Setzt den initialen GPIO-Status für die Tests.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.base.TestCase">
+<em class="property">class </em><code class="descclassname">tests.base.</code><code class="descname">TestCase</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="tests.base.TestCase.assertEqual">
+<code class="descname">assertEqual</code><span class="sig-paren">(</span><em>first</em>, <em>second</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertEqual" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Fail if the two objects are unequal as determined by the ‚==‘
+operator.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertFalse">
+<code class="descname">assertFalse</code><span class="sig-paren">(</span><em>expr</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertFalse" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Check that the expression is false.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertGreater">
+<code class="descname">assertGreater</code><span class="sig-paren">(</span><em>a</em>, <em>b</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertGreater" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Just like self.assertTrue(a &gt; b), but with a nicer default message.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertIn">
+<code class="descname">assertIn</code><span class="sig-paren">(</span><em>member</em>, <em>container</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertIn" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Just like self.assertTrue(a in b), but with a nicer default message.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertLess">
+<code class="descname">assertLess</code><span class="sig-paren">(</span><em>a</em>, <em>b</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertLess" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Just like self.assertTrue(a &lt; b), but with a nicer default message.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertNotIn">
+<code class="descname">assertNotIn</code><span class="sig-paren">(</span><em>member</em>, <em>container</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertNotIn" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Just like self.assertTrue(a not in b), but with a nicer default message.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.assertTrue">
+<code class="descname">assertTrue</code><span class="sig-paren">(</span><em>expr</em>, <em>msg=None</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.assertTrue" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Check that the expression is true.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.setUp" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up the test fixture before exercising it.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.base.TestCase.tearDown">
+<code class="descname">tearDown</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.base.TestCase.tearDown" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for deconstructing the test fixture after testing it.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-tests.test">
+<span id="tests-test-module"></span><h2>tests.test module<a class="headerlink" href="#module-tests.test" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Dieses Skript sammelt alle Tests aus seinem Verzeichnis und führt diese aus.</p>
+</div>
+<div class="section" id="module-tests.test_board">
+<span id="tests-test-board-module"></span><h2>tests.test_board module<a class="headerlink" href="#module-tests.test_board" title="Link zu dieser Überschrift">¶</a></h2>
+<dl class="class">
+<dt id="tests.test_board.Test_TestBoard">
+<em class="property">class </em><code class="descclassname">tests.test_board.</code><code class="descname">Test_TestBoard</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.setUp" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up the test fixture before exercising it.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="tests.test_board.Test_TestBoard.setUpClass">
+<em class="property">classmethod </em><code class="descname">setUpClass</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.setUpClass" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up class fixture before running tests in the class.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.test_DoorClose">
+<code class="descname">test_DoorClose</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.test_DoorClose" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.test_DoorOpen">
+<code class="descname">test_DoorOpen</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.test_DoorOpen" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.test_IndoorLight">
+<code class="descname">test_IndoorLight</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.test_IndoorLight" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.test_InitialState">
+<code class="descname">test_InitialState</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.test_InitialState" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_board.Test_TestBoard.test_OutdoorLight">
+<code class="descname">test_OutdoorLight</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_board.Test_TestBoard.test_OutdoorLight" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-tests.test_controller">
+<span id="tests-test-controller-module"></span><h2>tests.test_controller module<a class="headerlink" href="#module-tests.test_controller" title="Link zu dieser Überschrift">¶</a></h2>
+<dl class="class">
+<dt id="tests.test_controller.Test_TestController">
+<em class="property">class </em><code class="descclassname">tests.test_controller.</code><code class="descname">Test_TestController</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.CloseDoorTest">
+<code class="descname">CloseDoorTest</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.CloseDoorTest" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.OpenDoorTest">
+<code class="descname">OpenDoorTest</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.OpenDoorTest" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.setUp" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up the test fixture before exercising it.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="tests.test_controller.Test_TestController.setUpClass">
+<em class="property">classmethod </em><code class="descname">setUpClass</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.setUpClass" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up class fixture before running tests in the class.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_CloseDoorByContact">
+<code class="descname">test_CloseDoorByContact</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_CloseDoorByContact" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_CloseDoorByTime">
+<code class="descname">test_CloseDoorByTime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_CloseDoorByTime" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_InitialState">
+<code class="descname">test_InitialState</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_InitialState" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_Light">
+<code class="descname">test_Light</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_Light" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_OpenDoorByContact">
+<code class="descname">test_OpenDoorByContact</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_OpenDoorByContact" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_controller.Test_TestController.test_OpenDoorByTime">
+<code class="descname">test_OpenDoorByTime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_controller.Test_TestController.test_OpenDoorByTime" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="tests-test-jobtimer-module">
+<h2>tests.test_jobtimer module<a class="headerlink" href="#tests-test-jobtimer-module" title="Link zu dieser Überschrift">¶</a></h2>
+</div>
+<div class="section" id="module-tests.test_sunrise">
+<span id="tests-test-sunrise-module"></span><h2>tests.test_sunrise module<a class="headerlink" href="#module-tests.test_sunrise" title="Link zu dieser Überschrift">¶</a></h2>
+<dl class="class">
+<dt id="tests.test_sunrise.Test_DoorActions">
+<em class="property">class </em><code class="descclassname">tests.test_sunrise.</code><code class="descname">Test_DoorActions</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_DoorActions" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_sunrise.Test_DoorActions.test_DoorActions">
+<code class="descname">test_DoorActions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_DoorActions.test_DoorActions" title="Link zu dieser Definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Prüft sunrise.GetDoorAction():</dt>
+<dd><ul class="first last simple">
+<li>kein Zustandswechsel innerhalb eines 5 Stunden Fensters</li>
+<li>Öffnungszeit zwischen Sonnenauf- und -untergang (angepasst)</li>
+<li>geprüft wird minütlich in den Tagen aus sdate</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.test_sunrise.Test_NextActions">
+<em class="property">class </em><code class="descclassname">tests.test_sunrise.</code><code class="descname">Test_NextActions</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_NextActions" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_sunrise.Test_NextActions.test_NextActions">
+<code class="descname">test_NextActions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_NextActions.test_NextActions" title="Link zu dieser Definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Prüft die Ermittlung der nächsten Aktionen (sunrise.GetNextActions):</dt>
+<dd><ul class="first last simple">
+<li>geprüft wird minütlich in den Tagen aus sdate</li>
+<li>die jeweils nächste Operation muss mit den Zeiten aus sdate übereinstimmen</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.test_sunrise.Test_SunriseConsistency">
+<em class="property">class </em><code class="descclassname">tests.test_sunrise.</code><code class="descname">Test_SunriseConsistency</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_SunriseConsistency" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_sunrise.Test_SunriseConsistency.test_Consistency">
+<code class="descname">test_Consistency</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_SunriseConsistency.test_Consistency" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.test_sunrise.Test_SunriseTimes">
+<em class="property">class </em><code class="descclassname">tests.test_sunrise.</code><code class="descname">Test_SunriseTimes</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_SunriseTimes" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_sunrise.Test_SunriseTimes.test_Times">
+<code class="descname">test_Times</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.Test_SunriseTimes.test_Times" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Prüft die Berechnung der Sonnenaufgangs- / -untergangszeiten gegen
+sdate.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="tests.test_sunrise.in_range">
+<code class="descclassname">tests.test_sunrise.</code><code class="descname">in_range</code><span class="sig-paren">(</span><em>dt</em>, <em>expected</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_sunrise.in_range" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt zurück, ob der Zeitpunkt <cite>dt</cite> im Bereich <cite>expected</cite> +- <cite>allowed_delta</cite>
+liegt.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-tests.test_watchdog">
+<span id="tests-test-watchdog-module"></span><h2>tests.test_watchdog module<a class="headerlink" href="#module-tests.test_watchdog" title="Link zu dieser Überschrift">¶</a></h2>
+<dl class="class">
+<dt id="tests.test_watchdog.Test_TestWatchdog">
+<em class="property">class </em><code class="descclassname">tests.test_watchdog.</code><code class="descname">Test_TestWatchdog</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.Test_TestWatchdog" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#tests.base.TestCase" title="tests.base.TestCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">tests.base.TestCase</span></code></a></p>
+<dl class="method">
+<dt id="tests.test_watchdog.Test_TestWatchdog.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.Test_TestWatchdog.setUp" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for setting up the test fixture before exercising it.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.Test_TestWatchdog.tearDown">
+<code class="descname">tearDown</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.Test_TestWatchdog.tearDown" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hook method for deconstructing the test fixture after testing it.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.Test_TestWatchdog.test_Watchdog">
+<code class="descname">test_Watchdog</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.Test_TestWatchdog.test_Watchdog" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.test_watchdog.popenDummy">
+<em class="property">class </em><code class="descclassname">tests.test_watchdog.</code><code class="descname">popenDummy</code><span class="sig-paren">(</span><em>mod</em>, <em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.popenDummy" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.EXITCODE_FINISHED">
+<code class="descname">EXITCODE_FINISHED</code><em class="property"> = 3</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.EXITCODE_FINISHED" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.EXITCODE_KILL">
+<code class="descname">EXITCODE_KILL</code><em class="property"> = 2</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.EXITCODE_KILL" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.EXITCODE_SIGNAL">
+<code class="descname">EXITCODE_SIGNAL</code><em class="property"> = 1</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.EXITCODE_SIGNAL" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.PID">
+<code class="descname">PID</code><em class="property"> = 1</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.PID" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.SIGNAL_IGNORE">
+<code class="descname">SIGNAL_IGNORE</code><em class="property"> = 2</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.SIGNAL_IGNORE" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.SIGNAL_RAISE">
+<code class="descname">SIGNAL_RAISE</code><em class="property"> = 0</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.SIGNAL_RAISE" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="tests.test_watchdog.popenDummy.SIGNAL_TERM">
+<code class="descname">SIGNAL_TERM</code><em class="property"> = 1</em><a class="headerlink" href="#tests.test_watchdog.popenDummy.SIGNAL_TERM" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.popenDummy.kill">
+<code class="descname">kill</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.popenDummy.kill" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.popenDummy.poll">
+<code class="descname">poll</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.popenDummy.poll" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.popenDummy.send_signal">
+<code class="descname">send_signal</code><span class="sig-paren">(</span><em>signal_code</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.popenDummy.send_signal" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tests.test_watchdog.subprocessDummy">
+<em class="property">class </em><code class="descclassname">tests.test_watchdog.</code><code class="descname">subprocessDummy</code><a class="headerlink" href="#tests.test_watchdog.subprocessDummy" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="tests.test_watchdog.subprocessDummy.GetByName">
+<code class="descname">GetByName</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.subprocessDummy.GetByName" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.subprocessDummy.GetByPID">
+<code class="descname">GetByPID</code><span class="sig-paren">(</span><em>pid</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.subprocessDummy.GetByPID" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.subprocessDummy.Popen">
+<code class="descname">Popen</code><span class="sig-paren">(</span><em>cmdargs</em>, <em>*_args</em>, <em>**_kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.subprocessDummy.Popen" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="tests.test_watchdog.subprocessDummy.list2cmdline">
+<code class="descname">list2cmdline</code><span class="sig-paren">(</span><em>cmdline</em><span class="sig-paren">)</span><a class="headerlink" href="#tests.test_watchdog.subprocessDummy.list2cmdline" title="Link zu dieser Definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-tests">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-tests" title="Link zu dieser Überschrift">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">chicken-guard</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Schnellsuche</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Los" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, André Fritzsche-Schwalbe.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/tests.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,780 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="de">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>board module &#8212; chicken-guard 0.9 Dokumentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <link rel="index" title="Stichwortverzeichnis" href="genindex.html" />
+    <link rel="search" title="Suche" href="search.html" />
+    <link rel="next" title="cameraserver module" href="cameraserver.html" />
+    <link rel="prev" title="chicken-guard" href="modules.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="Stichwortverzeichnis"
+             accesskey="I">Index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python-Modulindex"
+             >Module</a> |</li>
+        <li class="right" >
+          <a href="cameraserver.html" title="cameraserver module"
+             accesskey="N">weiter</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="chicken-guard"
+             accesskey="P">zurück</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">chicken-guard 0.9 Dokumentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="modules.html" accesskey="U">chicken-guard</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-board">
+<span id="board-module"></span><h1>board module<a class="headerlink" href="#module-board" title="Link zu dieser Überschrift">¶</a></h1>
+<p>Dieses Modul enthält die Klassen und Funktionen, die als Abstraktionslayer zur Steuerung
+der Schaltung dienen:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Tür bewegen</li>
+<li>Türposition ermitteln</li>
+<li>Licht schalten</li>
+<li>Außenhelligkeit und Temperatur ermitteln</li>
+<li>Reboot- / Shutdownbutton überwachen</li>
+</ul>
+</div></blockquote>
+<p>Ursprünglich war geplant, die Bewegung der Tür durch Interrupts an den Magnetschaltern
+zu steuern. Leider hat mir dort die Interferenz durch den Weidezaun einen Strich durch
+die Rechnung gemacht, so dass ich mich auf die Werte der Magnetschalter nicht verlassen konnte.</p>
+<p>Aus diesem Grund ist die Methode zum Bewegen der Tür (<a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Board.SyncMoveDoor()</span></code></a>) nicht mehr
+asynchron erstellt, sondern wird vollständig synchron ausgeführt.</p>
+<div class="section" id="tursteuerung">
+<h2>Türsteuerung<a class="headerlink" href="#tursteuerung" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Das Bewegen der Tür erfolgt über die beiden Relais an den Pins
+<a class="reference internal" href="config.html#config.MOTOR_ON" title="config.MOTOR_ON"><code class="xref py py-data docutils literal notranslate"><span class="pre">MOTOR_ON</span></code></a> (Pin #40) und
+<code class="xref py py-data docutils literal notranslate"><span class="pre">MOTOR_DIR</span></code> (Pin #38).
+Die Relais schalten bei <a class="reference internal" href="config.html#config.RELAIS_ON" title="config.RELAIS_ON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.RELAIS_ON</span></code></a> durch (HIGH).</p>
+<p>Ich verwende hier Relais mit einer Wechselschaltung, auch wenn ich diese nur für die Richtungs-
+steuerung benötige. Dahinter liegt eine Platine eines alten RC-Fahrzeugs, über die ich dann
+die Leitungen entsprechend durchschalte.</p>
+<p>Als erstes wird immer die Richtung über das Relais an
+<code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOTOR_DIR</span></code> (PIN #38) geschalten:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="config.html#config.MOVE_UP" title="config.MOVE_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_UP</span></code></a> (HIGH) dreht den Motor so, dass die Tür nach oben gezogen wird</li>
+<li><a class="reference internal" href="config.html#config.MOVE_DOWN" title="config.MOVE_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_DOWN</span></code></a> (LOW) genau anders herum ;)</li>
+</ul>
+</div></blockquote>
+<p>Danach erst wird der Motor aktiviert, indem das Relais <a class="reference internal" href="config.html#config.MOTOR_ON" title="config.MOTOR_ON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOTOR_ON</span></code></a> (Pin #40) auf
+<a class="reference internal" href="config.html#config.RELAIS_ON" title="config.RELAIS_ON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.RELAIS_ON</span></code></a> (HIGH) geschalten wird.</p>
+<p>Jetzt bleibt der Motor solange angeschalten, bis entweder die maximale Zeit der entsprechenden
+Bewegungsrichtung erreicht oder der jeweilige Magnetkontakt geschlossen wurde.</p>
+<p>Bei kalten Aussentemperaturen führt ein Abschalten nach Zeit zwar leider dazu, dass die Tür
+nicht vollständig öffnet und die Hühner sich bücken müssen, aber wichtiger ist, dass die Tür
+abends vollständig schließt.</p>
+<p>Der als Antrieb verwendete Akkuschrauber hat eine Lastkupplung, so dass ein Überdrehen
+bei Erreichen der Endposition ausgeschlossen ist.</p>
+</div>
+<div class="section" id="magnetkontakte">
+<h2>Magnetkontakte<a class="headerlink" href="#magnetkontakte" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Hier handelt es sich um zwei einfache Magnetkontakte:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="config.html#config.REED_UPPER" title="config.REED_UPPER"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_UPPER</span></code></a> (Pin #13) als oberer Anschlag</li>
+<li><a class="reference internal" href="config.html#config.REED_LOWER" title="config.REED_LOWER"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_LOWER</span></code></a> (Pin #11) als unterer Anschlag</li>
+</ul>
+</div></blockquote>
+<p>Beide liegen als Pullup mit einem 10k - Widerstand an den Pins an, ein Schließen der
+Magnetkontakte zieht die Pins also von <a class="reference internal" href="config.html#config.REED_OPENED" title="config.REED_OPENED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_OPENED</span></code></a> (HIGH) nach
+<a class="reference internal" href="config.html#config.REED_CLOSED" title="config.REED_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_CLOSED</span></code></a> (LOW).</p>
+<p>Wie bereits erwähnt, kann es bei aktivem Weidezaung zu Interferenzen kommen, die dazu führen,
+dass der Magnetschalter nicht triggert.
+Aus diesem Grund musst die ursprüngliche Implementierung (Interrupt an fallender Flanke)
+verwerfen und ein Intervall-Polling verwenden (siehe <a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Board.IsReedClosed()</span></code></a>)
+sowie die Dauer der Bewegung prüfen.</p>
+<p>Um nach einem Neustart den letzten Zustand auch ohne Magnetkontakte zu erhalten, wird
+der jeweils aktuelle Zustand der Tür in einer Datei gespeichert, die bei Neustart
+eingelesen und mit den Signalen der Magnetkontakte abgeglichen wird.</p>
+</div>
+<div class="section" id="licht">
+<h2>Licht<a class="headerlink" href="#licht" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Hier handelt es sich um zwei handelsübliche LED-Lampen, die über die Relais mit
+230V versorgt werden:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="config.html#config.LIGHT_INDOOR" title="config.LIGHT_INDOOR"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.LIGHT_INDOOR</span></code></a> (Pin #36) schaltet die Innenbeleuchtung</li>
+<li><a class="reference internal" href="config.html#config.LIGHT_OUTDOOR" title="config.LIGHT_OUTDOOR"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.LIGHT_OUTDOOR</span></code></a> (Pin #31) schaltet die Außenbeleuchtung</li>
+</ul>
+</div></blockquote>
+<p>Das jeweilige Licht geht an, wenn das entsprechende Relais auf <a class="reference internal" href="config.html#config.RELAIS_ON" title="config.RELAIS_ON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.RELAIS_ON</span></code></a>
+geschalten wird.</p>
+<p>Als zusätzliche Abschalteinrichtung ist nach den Relais nochmals ein Schalter
+verbaut, mit dem das jeweilige Liche abgeschalten werden kann (UND-Schaltung
+Relais - Schalter 1).
+Ein manuelles Einschalten des Lichts wird durch einen weiteren Schalter realisiert,
+der eine Leitung parallel zur Relais-Leitung realisiert (ODER-Schaltung Relais - Schalter 2)</p>
+</div>
+<div class="section" id="sensoren">
+<h2>Sensoren<a class="headerlink" href="#sensoren" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Hier ist ein über I2C an Kanal 0x48 angeschlossener PCF8591 verbaut, der zum Ermitteln
+der Helligkeit (am Fenster des Hühnerhaus) sowie der Temperatur im Innenraum dient.
+Letzterer liefert leider keine korrekten Werte (eventuell sind hier die 3.3V Eingangsspannung
+zu niedrig), weshalb aktuell die Temperaturwerte nicht zu gebrauchen sind.</p>
+<p>Der Helligkeitssensor (ein Fotowiderstand) gibt hohe Werte zurück, je dunkler die Umgebung ist
+(200 = dunkel, &lt; 100 sehr hell).</p>
+</div>
+<div class="section" id="reboot-button">
+<h2>Reboot-Button<a class="headerlink" href="#reboot-button" title="Link zu dieser Überschrift">¶</a></h2>
+<p>Als Pullup mit 10K an <a class="reference internal" href="config.html#config.SHUTDOWN_BUTTON" title="config.SHUTDOWN_BUTTON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.SHUTDOWN_BUTTON</span></code></a> (Pin #29) verbundener Taster.
+Ursprünglich nur als Shutdown-Variante mit Interrupt an steigender Flanke (Loslassen)
+verbunden, gab es auch hier ab und an Fehlmeldung (entweder auch durch Interferenzen oder
+Fehler in der GPIO-Bibliothek), so dass ich hier <a class="reference internal" href="#board.Board.OnShutdownButtonPressed" title="board.Board.OnShutdownButtonPressed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Board.OnShutdownButtonPressed()</span></code></a>
+als Interrupt für beide Flanken verwenden und die Zeit dazwischen messe, um einen
+Reboot (&gt; <a class="reference internal" href="config.html#config.BTN_DURATION_REBOOT" title="config.BTN_DURATION_REBOOT"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.BTN_DURATION_REBOOT</span></code></a> Sekunden drücken) oder
+Shutdown (&gt; <a class="reference internal" href="config.html#config.BTN_DURATION_SHUTDOWN" title="config.BTN_DURATION_SHUTDOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.BTN_DURATION_SHUTDOWN</span></code></a> Sekunden drücken) auszulösen.</p>
+</div>
+<div class="section" id="klassen-und-funktionen">
+<h2>Klassen und Funktionen<a class="headerlink" href="#klassen-und-funktionen" title="Link zu dieser Überschrift">¶</a></h2>
+<dl class="function">
+<dt id="board.AnalogToCelsius">
+<code class="descclassname">board.</code><code class="descname">AnalogToCelsius</code><span class="sig-paren">(</span><em>analog_value</em><span class="sig-paren">)</span><a class="headerlink" href="#board.AnalogToCelsius" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Rechnet den vom Thermistor des PCF8591 gelieferten Analogwert in Grad Celsius um.
+Achtung: aktuell wird der Eingangswert unverändert (aber als float) zurückgegeben,
+da der Sensor nicht funktioniert.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="board.Board">
+<em class="property">class </em><code class="descclassname">board.</code><code class="descname">Board</code><a class="headerlink" href="#board.Board" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="shared.html#shared.LoggableClass" title="shared.LoggableClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">shared.LoggableClass</span></code></a></p>
+<p>Bildet die wesentliche Steuerung am Board ab.</p>
+<dl class="method">
+<dt id="board.Board.CheckInitialState">
+<code class="descname">CheckInitialState</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.CheckInitialState" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Prüft den initialen Zustand nach Konstruktion dieser Instanz.</p>
+<p>Lädt zuerst die Statusdatei (<a class="reference internal" href="#board.Board.Load" title="board.Board.Load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Load()</span></code></a>) und prüft dann,
+ob der obere Magnetkontakt geschlossen ist (<a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a>).</p>
+<p>Falls ja, wird der Türstatus auf offen (<a class="reference internal" href="config.html#config.DOOR_OPEN" title="config.DOOR_OPEN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_OPEN</span></code></a>) gesetzt,
+ansonsten auf den Zustand, der zuletzt gespeichert wurde. Falls
+(noch) keine Zustandsdatei existiert, wird die die Tür als
+geschlossen (<a class="reference internal" href="config.html#config.DOOR_CLOSED" title="config.DOOR_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_CLOSED</span></code></a>) angenommen.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.Save" title="board.Board.Save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Save()</span></code></a>
+<a class="reference internal" href="#board.Board.Load" title="board.Board.Load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Load()</span></code></a>
+<a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a>
+<a class="reference internal" href="#board.Board.door_state" title="board.Board.door_state"><code class="xref py py-attr docutils literal notranslate"><span class="pre">door_state</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.CloseDoor">
+<code class="descname">CloseDoor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.CloseDoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Entspricht <a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a> ( <a class="reference internal" href="config.html#config.MOVE_DOWN" title="config.MOVE_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_DOWN</span></code></a> ).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.GetLight">
+<code class="descname">GetLight</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#board.Board.GetLight" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Liefert den Wert des Helligkeitssensors.
+Siehe dazu <a class="reference internal" href="#board.Sensors.ReadLight" title="board.Sensors.ReadLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Sensors.ReadLight()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.GetState">
+<code class="descname">GetState</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.GetState" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt den aktuellen Status des Board als Dictionary zurück.
+Dieser hat folgende Werte:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal notranslate"><span class="pre">indoor_light</span></code>: bool = Zustand der Innenbeleuchtung (siehe
+<a class="reference internal" href="#board.Board.IsIndoorLightOn" title="board.Board.IsIndoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsIndoorLightOn()</span></code></a>)</li>
+<li><code class="docutils literal notranslate"><span class="pre">outdoor_light</span></code>: bool = Zustand der Außenbeleuchtung (siehe
+<a class="reference internal" href="#board.Board.IsOutdoorLightOn" title="board.Board.IsOutdoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsOutdoorLightOn()</span></code></a>)</li>
+<li><code class="docutils literal notranslate"><span class="pre">door</span></code>: int = aktueller Türzustand. Kann folgende Werte haben:
+- <a class="reference internal" href="config.html#config.DOOR_MOVING" title="config.DOOR_MOVING"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING</span></code></a>: Tür bewegt sich gerade
+- <a class="reference internal" href="config.html#config.DOOR_CLOSED" title="config.DOOR_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_CLOSED</span></code></a>: Tür ist geschlossen
+- <a class="reference internal" href="config.html#config.DOOR_OPEN" title="config.DOOR_OPEN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_OPEN</span></code></a>: Tür ist offen
+- <a class="reference internal" href="config.html#config.DOOR_NOT_MOVING" title="config.DOOR_NOT_MOVING"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_NOT_MOVING</span></code></a>: Fehler</li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.GetTemperature">
+<code class="descname">GetTemperature</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#board.Board.GetTemperature" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Liefert die aktuelle Temperatur am angeschlossenen Sensor.
+Siehe dazu <a class="reference internal" href="#board.Sensors.ReadTemperature" title="board.Sensors.ReadTemperature"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Sensors.ReadTemperature()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsDoorClosed">
+<code class="descname">IsDoorClosed</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsDoorClosed" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt zurück, ob die Tür geschlossen ist.
+Siehe <a class="reference internal" href="#board.Board.IsDoorOpen" title="board.Board.IsDoorOpen"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorOpen()</span></code></a> für weitere Details.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsDoorMoving">
+<code class="descname">IsDoorMoving</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsDoorMoving" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Liefert zurück, ob die Tür sich gerade in Bewegung befindet.
+Die Richtung ist dabei nicht von Belang.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.IsDoorOpen" title="board.Board.IsDoorOpen"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorOpen()</span></code></a>
+<a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsDoorOpen">
+<code class="descname">IsDoorOpen</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsDoorOpen" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt zurück, ob die Tür geöffnet ist.
+Primär wird dazu <a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a> für den Kontakt <a class="reference internal" href="config.html#config.REED_UPPER" title="config.REED_UPPER"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_UPPER</span></code></a>
+verwendet.
+Da es trotz der Messreihe aus <a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a> immer noch manchmal
+zu Messfehlern am Magnetkontakt kommt, wird - falls <a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a> <code class="docutils literal notranslate"><span class="pre">False</span></code>
+liefert - der gespeicherte Zustand der Tür aus <a class="reference internal" href="#board.Board.door_state" title="board.Board.door_state"><code class="xref py py-attr docutils literal notranslate"><span class="pre">door_state</span></code></a> geprüft.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Rückgabe:</th><td class="field-body">Ob die Tür offen ist.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.IsDoorClosed" title="board.Board.IsDoorClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorClosed()</span></code></a>
+<a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a>
+<a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsIndoorLightOn">
+<code class="descname">IsIndoorLightOn</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsIndoorLightOn" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt zurück, ob die Innenbeleuchtung angeschalten ist.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchIndoorLight" title="board.Board.SwitchIndoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchIndoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.IsOutdoorLightOn" title="board.Board.IsOutdoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsOutdoorLightOn()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsOutdoorLightOn">
+<code class="descname">IsOutdoorLightOn</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsOutdoorLightOn" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt zurück, ob die Außenbeleuchtung angeschalten ist.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchOutdoorLight" title="board.Board.SwitchOutdoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchOutdoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.IsIndoorLightOn" title="board.Board.IsIndoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsIndoorLightOn()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.IsReedClosed">
+<code class="descname">IsReedClosed</code><span class="sig-paren">(</span><em>reed_pin: int</em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.IsReedClosed" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt an, ob der Magnetkontakt am entsprechenden Pin geschlossen ist.
+Da es immer wieder Probleme durch Interferenzen mit dem Weidezaun gab, werden
+hier 15 Messungen in 0,7 Sekunden durchgeführt.
+Wenn mindestens 5x der Kontakt als geschlossen ermittelt wurde, wird der
+gehen wir hier von einem echten Schließen aus.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameter:</th><td class="field-body"><strong>reed_pin</strong> (<em>int</em>) – Pin des Magnetkontakts, also entweder <a class="reference internal" href="config.html#config.REED_UPPER" title="config.REED_UPPER"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_UPPER</span></code></a>
+oder <a class="reference internal" href="config.html#config.REED_LOWER" title="config.REED_LOWER"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.REED_LOWER</span></code></a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Rückgabe:</th><td class="field-body">Ob der angegebene Magentkontakt geschlossen ist.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.IsDoorOpen" title="board.Board.IsDoorOpen"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorOpen()</span></code></a>
+<a class="reference internal" href="#board.Board.IsDoorClosed" title="board.Board.IsDoorClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorClosed()</span></code></a>
+<a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.Load">
+<code class="descname">Load</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.Load" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Lädt den in der Datei <a class="reference internal" href="#board.Board.state_file" title="board.Board.state_file"><code class="xref py py-attr docutils literal notranslate"><span class="pre">state_file</span></code></a> abgelegten Zustand
+des Boards. Obwohl in <a class="reference internal" href="#board.Board.Save" title="board.Board.Save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Save()</span></code></a> mehr gespeichert wird,
+wird hier nur <a class="reference internal" href="#board.Board.door_state" title="board.Board.door_state"><code class="xref py py-attr docutils literal notranslate"><span class="pre">door_state</span></code></a> geladen.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Rückgabe:</th><td class="field-body">Ein Boolean das angibt, ob die Datei geladen wurde.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.OnShutdownButtonPressed">
+<code class="descname">OnShutdownButtonPressed</code><span class="sig-paren">(</span><em>*_args</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.OnShutdownButtonPressed" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Interrupt-Methode für den Taster am Pin <a class="reference internal" href="config.html#config.SHUTDOWN_BUTTON" title="config.SHUTDOWN_BUTTON"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.SHUTDOWN_BUTTON</span></code></a>.</p>
+<p>Wird mit einer Bouncetime von 200ms an beiden Flanken gerufen, also sowohl
+wenn der Taster gedrückt also auch losgelassen wurde.</p>
+<p>Da der Taster über einen 10K - Pullup den Pin auf LOW zieht, wird
+bei einem LOW Signal davon ausgegangen, dass der Taster gedrückt und
+bei einem HIGH Signal losgelassen wurde.</p>
+<p>Zur Vermeidung der Interpretation von Fehlsignalen, wird auch genau diese
+Reihenfolge (erst drücken, dann loslassen) erwartet und in allen andere
+Fällen keine Verarbeitung durchgeführt.
+Hierzu wird der Zeitpunkt des Drückens in <a class="reference internal" href="#board.Board.shutdown_btn_time" title="board.Board.shutdown_btn_time"><code class="xref py py-attr docutils literal notranslate"><span class="pre">shutdown_btn_time</span></code></a>
+verwendet. Bei einem LOW-Signal (gedrückt) muss dieser 0 sein und wird
+dann auf die aktuelle Zeit gesetzt, bei HIGH (losgelassen) darf er
+nicht 0 sein und wird nach Auswertung wieder auf 0 gesetzt.</p>
+<dl class="docutils">
+<dt>Die so ermittelt Zeit führt dann zu jeweiligen Aktion:</dt>
+<dd><ul class="first last simple">
+<li>länger als <a class="reference internal" href="config.html#config.BTN_DURATION_SHUTDOWN" title="config.BTN_DURATION_SHUTDOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.BTN_DURATION_SHUTDOWN</span></code></a> Sekunden: Shutdown</li>
+<li>länger als <a class="reference internal" href="config.html#config.BTN_DURATION_REBOOT" title="config.BTN_DURATION_REBOOT"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.BTN_DURATION_REBOOT</span></code></a> Sekunden: Reboot</li>
+<li>weniger als <a class="reference internal" href="config.html#config.BTN_DURATION_REBOOT" title="config.BTN_DURATION_REBOOT"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.BTN_DURATION_REBOOT</span></code></a> Sekunden: keine Aktion</li>
+</ul>
+</dd>
+</dl>
+<p>Die Aktionen werden über <code class="docutils literal notranslate"><span class="pre">os.system</span></code> ausgeführt, der Prozess muss also
+entsprechende Rechte verfügen.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.OpenDoor">
+<code class="descname">OpenDoor</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.OpenDoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Entspricht <a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a> ( <a class="reference internal" href="config.html#config.MOVE_UP" title="config.MOVE_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_UP</span></code></a> ).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.Save">
+<code class="descname">Save</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.Save" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Speichert den aktuellen Zustand des Boards in der
+Datei <a class="reference internal" href="#board.Board.state_file" title="board.Board.state_file"><code class="xref py py-attr docutils literal notranslate"><span class="pre">state_file</span></code></a>.</p>
+<dl class="docutils">
+<dt>Der Zustand besteht aus den Attributen:</dt>
+<dd><ul class="first last simple">
+<li><a class="reference internal" href="#board.Board.door_state" title="board.Board.door_state"><code class="xref py py-attr docutils literal notranslate"><span class="pre">door_state</span></code></a></li>
+<li><a class="reference internal" href="#board.Board.light_state_indoor" title="board.Board.light_state_indoor"><code class="xref py py-attr docutils literal notranslate"><span class="pre">light_state_indoor</span></code></a></li>
+<li><a class="reference internal" href="#board.Board.light_state_outdoor" title="board.Board.light_state_outdoor"><code class="xref py py-attr docutils literal notranslate"><span class="pre">light_state_outdoor</span></code></a></li>
+</ul>
+</dd>
+</dl>
+<p>die im JSON-Format gespeichert werden.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.Load" title="board.Board.Load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Load()</span></code></a>
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">CallStateChangeHandler()</span></code></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.SetStateChangeHandler">
+<code class="descname">SetStateChangeHandler</code><span class="sig-paren">(</span><em>handler: callable</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.SetStateChangeHandler" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Setzt einen Handler der bei jeder Statusänderung des Boards gerufen wird.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameter:</th><td class="field-body"><strong>handler</strong> (<em>callable</em>) – Ein Callable das ein Dictionary wie in <a class="reference internal" href="#board.Board.GetState" title="board.Board.GetState"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GetState()</span></code></a>
+als einzigen Parameter entgegennimmt.
+Kann auch <code class="docutils literal notranslate"><span class="pre">None</span></code> sein, das entspricht einem Entfernen des Handlers.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="tools.html#tools.InstallStateChangeHandler" title="tools.InstallStateChangeHandler"><code class="xref py py-meth docutils literal notranslate"><span class="pre">tools.InstallStateChangeHandler()</span></code></a>
+<a class="reference internal" href="#board.Board.GetState" title="board.Board.GetState"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GetState()</span></code></a>
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_SetDoorState()</span></code>
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_CallStateChangeHandler()</span></code></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.StartMotor">
+<code class="descname">StartMotor</code><span class="sig-paren">(</span><em>direction: int</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.StartMotor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Schaltet die Motorsteuerungsrelais so, dass sich der Motor in die
+entsprechende Richtung dreht.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameter:</th><td class="field-body"><strong>direction</strong> – Drehrichung. Der Einfachheit halber wird hier <a class="reference internal" href="config.html#config.MOVE_UP" title="config.MOVE_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_UP</span></code></a>
+bzw. <a class="reference internal" href="config.html#config.MOVE_DOWN" title="config.MOVE_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_DOWN</span></code></a> für die Richtung erwartet und entspricht damit
+der Bewegungsrichtung der Tür.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SyncMoveDoor" title="board.Board.SyncMoveDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SyncMoveDoor()</span></code></a>
+<a class="reference internal" href="#board.Board.StopMotor" title="board.Board.StopMotor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">StopMotor()</span></code></a>
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_SetDoorState()</span></code></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.StopDoor">
+<code class="descname">StopDoor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.StopDoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Hält die Tür an (insofern sie sich gerade bewegt).
+Ruft lediglich <a class="reference internal" href="#board.Board.StopMotor" title="board.Board.StopMotor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">StopMotor()</span></code></a>.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.OpenDoor" title="board.Board.OpenDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">OpenDoor()</span></code></a>
+<a class="reference internal" href="#board.Board.CloseDoor" title="board.Board.CloseDoor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CloseDoor()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.StopMotor">
+<code class="descname">StopMotor</code><span class="sig-paren">(</span><em>end_state: int = 0</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.StopMotor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Schaltet die Releais zur Motorsteuerung so, dass der Motor ausgeht und die
+Drehrichtung zurückgesetzt wird.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameter:</th><td class="field-body"><strong>end_state</strong> (<em>int</em>) – der damit erreichte Status der Tür, in der Regel also
+<a class="reference internal" href="config.html#config.DOOR_OPEN" title="config.DOOR_OPEN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_OPEN</span></code></a> oder <a class="reference internal" href="config.html#config.DOOR_CLOSED" title="config.DOOR_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_CLOSED</span></code></a>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.SwitchIndoorLight">
+<code class="descname">SwitchIndoorLight</code><span class="sig-paren">(</span><em>swon: bool</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.SwitchIndoorLight" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Schaltet die Innenbeleuchtung ein, wenn <code class="docutils literal notranslate"><span class="pre">swon</span></code> True ist. (sonst aus).</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchOutdoorLight" title="board.Board.SwitchOutdoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchOutdoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.IsIndoorLightOn" title="board.Board.IsIndoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsIndoorLightOn()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.SwitchOutdoorLight">
+<code class="descname">SwitchOutdoorLight</code><span class="sig-paren">(</span><em>swon: bool</em><span class="sig-paren">)</span><a class="headerlink" href="#board.Board.SwitchOutdoorLight" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Schaltet das Aussenlicht ein, wenn <code class="docutils literal notranslate"><span class="pre">swon</span></code> True ist. (sonst aus)</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchIndoorLight" title="board.Board.SwitchIndoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchIndoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.IsOutdoorLightOn" title="board.Board.IsOutdoorLightOn"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsOutdoorLightOn()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Board.SyncMoveDoor">
+<code class="descname">SyncMoveDoor</code><span class="sig-paren">(</span><em>direction: int</em><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#board.Board.SyncMoveDoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bewegt die Tür in die angegebene Richtung und kehrt erst nach Erreichen des damit
+verbundenen Endzustands zurück.</p>
+<p>Sollte die Endposition der vorgegebenen Bewegungsrichtung bereits erreicht sein
+(z.Bsp. <a class="reference internal" href="config.html#config.DOOR_CLOSED" title="config.DOOR_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_CLOSED</span></code></a> bei <a class="reference internal" href="config.html#config.MOVE_DOWN" title="config.MOVE_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_DOWN</span></code></a>) oder die Tür
+bereits in Bewegung, wird eine Fehlermeldung ins Log geschrieben und keine Aktion
+ausgeführt.</p>
+<p>Der erwartete Endzustand wird sowohl anhand der maximalen Bewegungszeit der
+entsprechenden Richtung (<a class="reference internal" href="config.html#config.DOOR_MOVE_DOWN_TIME" title="config.DOOR_MOVE_DOWN_TIME"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVE_DOWN_TIME</span></code></a> oder
+<a class="reference internal" href="config.html#config.DOOR_MOVE_UP_TIME" title="config.DOOR_MOVE_UP_TIME"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVE_UP_TIME</span></code></a>) als auch den Signalen der Magnetkontakte geprüft.</p>
+<p>Wenn die Signalisierung über die Magnetkontakte stattgefunden hat, wird die Bewegung
+entsprechend der konfigurierten Zeiten noch etwas weiter ausgeführt (siehe
+<a class="reference internal" href="config.html#config.LOWER_REED_OFFSET" title="config.LOWER_REED_OFFSET"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.LOWER_REED_OFFSET</span></code></a> bzw. <a class="reference internal" href="config.html#config.UPPER_REED_OFFSET" title="config.UPPER_REED_OFFSET"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.UPPER_REED_OFFSET</span></code></a>). Der Grund
+dafür ist, dass die Magnetkontakte sehr zeitig auslösen und die jeweilige Endposition
+der Tür noch nicht erreicht wurde.</p>
+<p>Sollte der jeweilige Magnetkontakt nicht auslösen, wird die oben genannte Bewegungszeit
+als Maximum verwendet und bei Erreichen der Motor angehalten.</p>
+<p>In beiden Fällen wird dann der Zustand der Tür entsprechend der Bewegungsrichtung
+gesetzt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameter:</th><td class="field-body"><strong>direction</strong> (<em>int</em>) – Bewegungsrichtung der Tür.
+Kann entweder <a class="reference internal" href="config.html#config.MOVE_UP" title="config.MOVE_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_UP</span></code></a> oder <a class="reference internal" href="config.html#config.MOVE_DOWN" title="config.MOVE_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.MOVE_DOWN</span></code></a> sein.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Rückgabe:</th><td class="field-body">Ob die Tür bewegt wurde.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.StartMotor" title="board.Board.StartMotor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">StartMotor()</span></code></a>
+<a class="reference internal" href="#board.Board.StopMotor" title="board.Board.StopMotor"><code class="xref py py-meth docutils literal notranslate"><span class="pre">StopMotor()</span></code></a>
+<a class="reference internal" href="#board.Board.IsReedClosed" title="board.Board.IsReedClosed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsReedClosed()</span></code></a>
+<a class="reference internal" href="#board.Board.IsDoorMoving" title="board.Board.IsDoorMoving"><code class="xref py py-meth docutils literal notranslate"><span class="pre">IsDoorMoving()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.door_state">
+<code class="descname">door_state</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.door_state" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Aktueller Zustand der Tür.
+Kann einen der folgenden Werte annehmen:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="config.html#config.DOOR_NOT_MOVING" title="config.DOOR_NOT_MOVING"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_NOT_MOVING</span></code></a>: Quasi ein unbekannter Zustand, da die
+Tür im Stillstand entweder geschlossen oder offen sein sollte.</li>
+<li><a class="reference internal" href="config.html#config.DOOR_MOVING_UP" title="config.DOOR_MOVING_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING_UP</span></code></a>: Tür bewegt sich nach oben</li>
+<li><a class="reference internal" href="config.html#config.DOOR_MOVING_DOWN" title="config.DOOR_MOVING_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING_DOWN</span></code></a>: Tür bewegt sich nach unten</li>
+<li><a class="reference internal" href="config.html#config.DOOR_OPEN" title="config.DOOR_OPEN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_OPEN</span></code></a>: Tür ist offen</li>
+<li><a class="reference internal" href="config.html#config.DOOR_CLOSED" title="config.DOOR_CLOSED"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_CLOSED</span></code></a>: Tür ist geschlossen</li>
+</ul>
+</div></blockquote>
+<p>Zur Abfrage, ob sich die Tür bewegt, existiert ausserdem noch die Konstante
+<a class="reference internal" href="config.html#config.DOOR_MOVING" title="config.DOOR_MOVING"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING</span></code></a>, die als ODER-Ergebnis aus <a class="reference internal" href="config.html#config.DOOR_MOVING_DOWN" title="config.DOOR_MOVING_DOWN"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING_DOWN</span></code></a>
+und <a class="reference internal" href="config.html#config.DOOR_MOVING_UP" title="config.DOOR_MOVING_UP"><code class="xref py py-data docutils literal notranslate"><span class="pre">config.DOOR_MOVING_UP</span></code></a> zur Maskierung des Bewegungszustands
+verwendet werden kann:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">door_is_moving</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">door_state</span> <span class="o">&amp;</span> <span class="n">DOOR_MOVING</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.light_state_indoor">
+<code class="descname">light_state_indoor</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.light_state_indoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Zustand der Innenbeleuchtung (<code class="docutils literal notranslate"><span class="pre">True</span></code> = an)</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchIndoorLight" title="board.Board.SwitchIndoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchIndoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.light_state_indoor" title="board.Board.light_state_indoor"><code class="xref py py-attr docutils literal notranslate"><span class="pre">light_state_indoor</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.light_state_outdoor">
+<code class="descname">light_state_outdoor</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.light_state_outdoor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Zustand der Außenbeleuchtung (<code class="docutils literal notranslate"><span class="pre">True</span></code> = an)</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.SwitchOutdoorLight" title="board.Board.SwitchOutdoorLight"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SwitchOutdoorLight()</span></code></a>
+<a class="reference internal" href="#board.Board.light_state_indoor" title="board.Board.light_state_indoor"><code class="xref py py-attr docutils literal notranslate"><span class="pre">light_state_indoor</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.sensor">
+<code class="descname">sensor</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.sensor" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Instanz von <a class="reference internal" href="#board.Sensors" title="board.Sensors"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sensors</span></code></a> zum Auslesen der Temperatur
+und Helligkeitswerte.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.shutdown_btn_time">
+<code class="descname">shutdown_btn_time</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.shutdown_btn_time" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Zeitpunkt, an dem der Shutdown-Button gedrückt wurde.
+Wird in <a class="reference internal" href="#board.Board.OnShutdownButtonPressed" title="board.Board.OnShutdownButtonPressed"><code class="xref py py-meth docutils literal notranslate"><span class="pre">OnShutdownButtonPressed()</span></code></a> benutzt um zu ermitteln, wie lange der Knopf
+gedrückt wurde (und Fehlsignalisierung auszuschließen)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.state_change_handler">
+<code class="descname">state_change_handler</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.state_change_handler" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Referenz auf ein Callable, welches bei Änderung des Board-Status
+gerufen wird.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CallStateChangeHandler()</span></code>
+<a class="reference internal" href="#board.Board.SetStateChangeHandler" title="board.Board.SetStateChangeHandler"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetStateChangeHandler()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Board.state_file">
+<code class="descname">state_file</code><em class="property"> = None</em><a class="headerlink" href="#board.Board.state_file" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Pfad der Datei, in der der Status gespeichert wird.</p>
+<div class="admonition seealso">
+<p class="first admonition-title">Siehe auch</p>
+<p class="last"><a class="reference internal" href="#board.Board.Load" title="board.Board.Load"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Load()</span></code></a>
+<a class="reference internal" href="#board.Board.Save" title="board.Board.Save"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Save()</span></code></a></p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="board.Sensors">
+<em class="property">class </em><code class="descclassname">board.</code><code class="descname">Sensors</code><a class="headerlink" href="#board.Sensors" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="shared.html#shared.LoggableClass" title="shared.LoggableClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">shared.LoggableClass</span></code></a></p>
+<p>Diese Klasse dient zum Auslesen des Multisensors PCF8591 an I2C #0
+auf PIN #3 (SDA) und PIN #4 (SCL).</p>
+<dl class="method">
+<dt id="board.Sensors.CleanUp">
+<code class="descname">CleanUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#board.Sensors.CleanUp" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Räumt die verwendeten Ressourcen auf.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Sensors.ReadChannel">
+<code class="descname">ReadChannel</code><span class="sig-paren">(</span><em>channel: int</em>, <em>count: int = 10</em><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#board.Sensors.ReadChannel" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Liest vom Kanal ‚channel‘ Werte in der Anzahl ‚count‘,
+bildet aus diesen den Median und liefert ihn zurück.
+Wenn kein Wert ermittelt werden konnte, wird stattdessen
+None zurückgegeben.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Sensors.ReadLight">
+<code class="descname">ReadLight</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; int<a class="headerlink" href="#board.Sensors.ReadLight" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Gibt den Wert des Helligkeitssensors zurück.
+Je höher der Wert, desto dunkler.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">See:</th><td class="field-body"><a class="reference internal" href="#board.Sensors.ReadChannel" title="board.Sensors.ReadChannel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ReadChannel()</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="board.Sensors.ReadTemperature">
+<code class="descname">ReadTemperature</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; float<a class="headerlink" href="#board.Sensors.ReadTemperature" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Liest den Widerstandswert des Thermistor aus dem entsprechenden Kanal
+und liefert à conto dessen die Temperatur in °C zurück.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">See:</th><td class="field-body"><a class="reference internal" href="#board.Sensors.ReadChannel" title="board.Sensors.ReadChannel"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ReadChannel()</span></code></a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_ADDR">
+<code class="descname">SMBUS_ADDR</code><em class="property"> = 72</em><a class="headerlink" href="#board.Sensors.SMBUS_ADDR" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Adresse des I2C-Device</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_CH_AIN">
+<code class="descname">SMBUS_CH_AIN</code><em class="property"> = 65</em><a class="headerlink" href="#board.Sensors.SMBUS_CH_AIN" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>AIN</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_CH_AOUT">
+<code class="descname">SMBUS_CH_AOUT</code><em class="property"> = 68</em><a class="headerlink" href="#board.Sensors.SMBUS_CH_AOUT" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>AOUT</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_CH_LIGHT">
+<code class="descname">SMBUS_CH_LIGHT</code><em class="property"> = 64</em><a class="headerlink" href="#board.Sensors.SMBUS_CH_LIGHT" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Kanal des Fotowiderstand (je kleiner der Wert desto heller)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_CH_POTI">
+<code class="descname">SMBUS_CH_POTI</code><em class="property"> = 67</em><a class="headerlink" href="#board.Sensors.SMBUS_CH_POTI" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Potentiometer-Kanal</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="board.Sensors.SMBUS_CH_TEMP">
+<code class="descname">SMBUS_CH_TEMP</code><em class="property"> = 66</em><a class="headerlink" href="#board.Sensors.SMBUS_CH_TEMP" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Temperatur</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">board module</a><ul>
+<li><a class="reference internal" href="#tursteuerung">Türsteuerung</a></li>
+<li><a class="reference internal" href="#magnetkontakte">Magnetkontakte</a></li>
+<li><a class="reference internal" href="#licht">Licht</a></li>
+<li><a class="reference internal" href="#sensoren">Sensoren</a></li>
+<li><a class="reference internal" href="#reboot-button">Reboot-Button</a></li>
+<li><a class="reference internal" href="#klassen-und-funktionen">Klassen und Funktionen</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Vorheriges Thema</h4>
+  <p class="topless"><a href="modules.html"
+                        title="vorheriges Kapitel">chicken-guard</a></p>
+  <h4>Nächstes Thema</h4>
+  <p class="topless"><a href="cameraserver.html"
+                        title="nächstes Kapitel">cameraserver module</a></p>
+  <div role="note" aria-label="source link">
+    <h3>Diese Seite</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/board.rst.txt"
+            rel="nofollow">Quellcode anzeigen</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Schnellsuche</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Los" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="Stichwortverzeichnis"
+             >Index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python-Modulindex"
+             >Module</a> |</li>
+        <li class="right" >
+          <a href="cameraserver.html" title="cameraserver module"
+             >weiter</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="chicken-guard"
+             >zurück</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">chicken-guard 0.9 Dokumentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="modules.html" >chicken-guard</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, André Fritzsche-Schwalbe.
+      Mit <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.1 erstellt.
+    </div>
+  </body>
+</html>

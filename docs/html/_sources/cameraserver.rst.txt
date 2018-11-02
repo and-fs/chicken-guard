@@ -1,0 +1,7 @@
+cameraserver module
+===================
+
+.. automodule:: cameraserver
+    :members:
+    :undoc-members:
+    :show-inheritance:

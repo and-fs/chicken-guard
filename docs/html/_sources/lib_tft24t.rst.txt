@@ -1,0 +1,7 @@
+lib\_tft24t module
+==================
+
+.. automodule:: lib_tft24t
+    :members:
+    :undoc-members:
+    :show-inheritance:

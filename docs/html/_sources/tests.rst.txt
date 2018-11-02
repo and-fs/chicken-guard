@@ -1,0 +1,70 @@
+tests package
+=============
+
+Submodules
+----------
+
+tests.base module
+-----------------
+
+.. automodule:: tests.base
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test module
+-----------------
+
+.. automodule:: tests.test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test\_board module
+------------------------
+
+.. automodule:: tests.test_board
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test\_controller module
+-----------------------------
+
+.. automodule:: tests.test_controller
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test\_jobtimer module
+---------------------------
+
+.. automodule:: tests.test_jobtimer
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test\_sunrise module
+--------------------------
+
+.. automodule:: tests.test_sunrise
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tests.test\_watchdog module
+---------------------------
+
+.. automodule:: tests.test_watchdog
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: tests
+    :members:
+    :undoc-members:
+    :show-inheritance:

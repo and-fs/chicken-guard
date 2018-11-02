@@ -1,0 +1,10 @@
+gpiomockup package
+==================
+
+Module contents
+---------------
+
+.. automodule:: gpiomockup
+    :members:
+    :undoc-members:
+    :show-inheritance:
