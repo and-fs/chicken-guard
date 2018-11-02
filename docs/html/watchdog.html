@@ -47,11 +47,16 @@
 <span id="watchdog-module"></span><h1>watchdog module<a class="headerlink" href="#module-watchdog" title="Link zu dieser Überschrift">¶</a></h1>
 <p>Dieses Script startet und überwacht alle Skripte für die Steuerung und
 Überwachung des Chicken-Guard.
-Diese werden in <code class="xref py py-data docutils literal notranslate"><span class="pre">_scripts</span></code> abgelegt.</p>
-<p>Das sind:
-* Der Server für die WebCam (<em>cameraserver.py</em>)
-* Der Boardcontroller (<em>controlserver.py</em>)
-* Der Displaycontroller (<em>tftcontrol.py</em>)</p>
+Diese werden in <code class="xref py py-data docutils literal notranslate"><span class="pre">_SCRIPTS</span></code> abgelegt.</p>
+<dl class="docutils">
+<dt>Das sind:</dt>
+<dd><ul class="first last simple">
+<li>Der Server für die WebCam (<em>cameraserver.py</em>)</li>
+<li>Der Boardcontroller (<em>controlserver.py</em>)</li>
+<li>Der Displaycontroller (<em>tftcontrol.py</em>)</li>
+</ul>
+</dd>
+</dl>
 <p>Beispiel:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialisieren mit foo und bar Skripten aus dem</span>
 <span class="c1"># selben Verzeichnis</span>
@@ -59,7 +64,13 @@ Diese werden in <code class="xref py py-data docutils literal notranslate"><span
 <span class="n">w</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Logging erfolg nach <em>watchdog.log</em> (siehe dazu <code class="xref py py-class docutils literal notranslate"><span class="pre">LoggableClass</span></code>).</p>
+<p>Logging erfolg nach <em>watchdog.log</em> (siehe dazu <a class="reference internal" href="shared.html#shared.LoggableClass" title="shared.LoggableClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">shared.LoggableClass</span></code></a>).</p>
+<dl class="function">
+<dt id="watchdog.Main">
+<code class="descclassname">watchdog.</code><code class="descname">Main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Main" title="Link zu dieser Definition">¶</a></dt>
+<dd><p>Erzeugt einen <a class="reference internal" href="#watchdog.Watchdog" title="watchdog.Watchdog"><code class="xref py py-class docutils literal notranslate"><span class="pre">Watchdog</span></code></a> und führt diesen aus.</p>
+</dd></dl>
+
 <dl class="data">
 <dt id="watchdog.SIGINT">
 <code class="descclassname">watchdog.</code><code class="descname">SIGINT</code><em class="property"> = &lt;Signals.CTRL_C_EVENT: 0&gt;</em><a class="headerlink" href="#watchdog.SIGINT" title="Link zu dieser Definition">¶</a></dt>
@@ -69,33 +80,34 @@ gibt es nur CLTR_C_EVENT, also nehmen wir das wenn verfügbar.</p>
 
 <dl class="class">
 <dt id="watchdog.Watchdog">
-<em class="property">class </em><code class="descclassname">watchdog.</code><code class="descname">Watchdog</code><span class="sig-paren">(</span><em>scripts=('controlserver.py'</em>, <em>'cameraserver.py'</em>, <em>'tftcontrol.py')</em><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog" title="Link zu dieser Definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">watchdog.</code><code class="descname">Watchdog</code><span class="sig-paren">(</span><em>scripts: list = ('controlserver.py'</em>, <em>'cameraserver.py'</em>, <em>'tftcontrol.py')</em><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog" title="Link zu dieser Definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="shared.html#shared.LoggableClass" title="shared.LoggableClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">shared.LoggableClass</span></code></a></p>
+<p>Instanzen dieser Klasse starten und überwachen Python-Skripte.</p>
 <dl class="method">
 <dt id="watchdog.Watchdog.Cleanup">
 <code class="descname">Cleanup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog.Cleanup" title="Link zu dieser Definition">¶</a></dt>
 <dd><p>Räumt alle gestarten Prozesse weg.
 Zuerst wird versucht, ein <a class="reference internal" href="#watchdog.SIGINT" title="watchdog.SIGINT"><code class="xref py py-data docutils literal notranslate"><span class="pre">SIGINT</span></code></a> an den Prozess zu schicken.
 Sollte das fehlschlagen oder der Prozess nach 5 Sekunden immer noch laufen,
-wird <em>SIGKILL</em> geschickt.
+wird <code class="docutils literal notranslate"><span class="pre">SIGKILL</span></code> geschickt.
 Im Erfolgsfall ist <a class="reference internal" href="#watchdog.Watchdog.processes" title="watchdog.Watchdog.processes"><code class="xref py py-attr docutils literal notranslate"><span class="pre">processes</span></code></a> nach Ende dieser Methode immer
 leer.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="watchdog.Watchdog.Run">
-<code class="descname">Run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog.Run" title="Link zu dieser Definition">¶</a></dt>
+<code class="descname">Run</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#watchdog.Watchdog.Run" title="Link zu dieser Definition">¶</a></dt>
 <dd><p>Die Mainloop des Watchers.
 Startet alle Skripte aus <a class="reference internal" href="#watchdog.Watchdog.scripts" title="watchdog.Watchdog.scripts"><code class="xref py py-attr docutils literal notranslate"><span class="pre">scripts</span></code></a> und überwacht diese.
 Wird eines der Skripte vorzeitig beendet, wird es neu gestartet.
-Beenden der Loop erfolgt mit <em>SIGINT</em>.
+Beenden der Loop erfolgt mit <code class="docutils literal notranslate"><span class="pre">SIGINT</span></code>.
 Zwischen <strong>jeder</strong> Loop wird <code class="xref py py-attr docutils literal notranslate"><span class="pre">looptime</span></code> Sekunden geschlafen.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Rückgabe:</th><td class="field-body"><em>False</em> wenn der Start der Skripte zu Beginn fehlgeschlagen
-ist, sonst immer <em>True</em>.</td>
+<tr class="field-odd field"><th class="field-name">Rückgabe:</th><td class="field-body"><code class="docutils literal notranslate"><span class="pre">False</span></code> wenn der Start der Skripte zu Beginn fehlgeschlagen
+ist, sonst immer <code class="docutils literal notranslate"><span class="pre">True</span></code>.</td>
 </tr>
 </tbody>
 </table>
@@ -103,7 +115,7 @@ ist, sonst immer <em>True</em>.</td>
 
 <dl class="method">
 <dt id="watchdog.Watchdog.StartAll">
-<code class="descname">StartAll</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog.StartAll" title="Link zu dieser Definition">¶</a></dt>
+<code class="descname">StartAll</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; bool<a class="headerlink" href="#watchdog.Watchdog.StartAll" title="Link zu dieser Definition">¶</a></dt>
 <dd><p>Startet alle Scripte aus <a class="reference internal" href="#watchdog.Watchdog.scripts" title="watchdog.Watchdog.scripts"><code class="xref py py-attr docutils literal notranslate"><span class="pre">scripts</span></code></a>.
 Wenn alle erfolgreich gestartet wurden, ist die Rückgabe <em>True</em>.
 Schlägt mindestens ein Start fehl, wird das weitere Starten hier
@@ -114,7 +126,7 @@ Jeder gestartete Prozess wird zu <a class="reference internal" href="#watchdog.W
 
 <dl class="method">
 <dt id="watchdog.Watchdog.StartSingle">
-<code class="descname">StartSingle</code><span class="sig-paren">(</span><em>scriptname</em><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog.StartSingle" title="Link zu dieser Definition">¶</a></dt>
+<code class="descname">StartSingle</code><span class="sig-paren">(</span><em>scriptname: str</em><span class="sig-paren">)</span> &#x2192; subprocess.Popen<a class="headerlink" href="#watchdog.Watchdog.StartSingle" title="Link zu dieser Definition">¶</a></dt>
 <dd><p>Startet ein einzelnes Python-Script.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -132,7 +144,9 @@ Wird relativ zu <code class="xref py py-data docutils literal notranslate"><span
 <dl class="method">
 <dt id="watchdog.Watchdog.Terminate">
 <code class="descname">Terminate</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.Watchdog.Terminate" title="Link zu dieser Definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Setzt das Terminierungsflag für die Loop in <a class="reference internal" href="#watchdog.Watchdog.Run" title="watchdog.Watchdog.Run"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Run()</span></code></a>, worauf
+sich diese im nächsten Durchlauf selbst beenden sollte.</p>
+</dd></dl>
 
 <dl class="attribute">
 <dt id="watchdog.Watchdog.loop_time">
@@ -153,11 +167,6 @@ Wird relativ zu <code class="xref py py-data docutils literal notranslate"><span
 </dd></dl>
 
 </dd></dl>
-
-<dl class="function">
-<dt id="watchdog.main">
-<code class="descclassname">watchdog.</code><code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#watchdog.main" title="Link zu dieser Definition">¶</a></dt>
-<dd></dd></dl>
 
 </div>
 

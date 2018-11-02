@@ -1,5 +1,4 @@
 {
-    "python.pythonPath": "D:\\Program Files\\Python35\\python.exe",
     "python.unitTest.unittestEnabled": true,
     "python.unitTest.pyTestEnabled": false,
     "python.unitTest.nosetestsEnabled": false,
