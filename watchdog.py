@@ -12,7 +12,8 @@ Das sind:
 
 Beispiel:
 
-.. highlight::
+.. code-block:: python
+
     # Initialisieren mit foo und bar Skripten aus dem
     # selben Verzeichnis
     w = Watchdog(scripts = ['foo.py', 'bar.py])
@@ -57,9 +58,12 @@ class Watchdog(LoggableClass):
     def StartSingle(self, scriptname):
         """
         Startet ein einzelnes Python-Script.
+
         :param str scriptname: Name der Scriptdatei (inklusive Endung).
             Wird relativ zu :py:data:`root_path` aufgelöst.
+
         :returns: Das Popen-Objekt im Erfolgsfall, sonst *None*.
+
         """
         scriptpath = root_path / scriptname
         cmdline =  [sys.executable, str(scriptpath)]
