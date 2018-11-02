@@ -647,12 +647,12 @@ class Board(LoggableClass):
                 if triggered > 4:
                     # der Magnetkontakt war jetzt 4x
                     # geschlossen, damit ist die Bedingung erfüllt
-                    self.debug("Reed trigger: %d of %d", triggered, i)
+                    self.info("Reed trigger: %d of %d", triggered, i)
                     return True
                 triggered += 1
             if i < 14: # nach dem letzten Messen warten wir nicht
                 time.sleep(0.05)
-        self.debug("Reed trigger: %d of %d", triggered, i)
+        self.info("Reed trigger: %d of %d", triggered, i)
         return False
 
     def IsDoorOpen(self)->bool:

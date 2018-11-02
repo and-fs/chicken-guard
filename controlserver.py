@@ -683,7 +683,7 @@ class Controller(LoggableClass):
         wartende Threads weiterarbeiten können.
         """
         self._AddStateInfo(state)
-        self.info("Board state changed: %s", state)
+        self.debug("Board state changed: %s", state)
         with self._state_lock:
             self._state = (True, state)
             self._state_cond.notify_all()
