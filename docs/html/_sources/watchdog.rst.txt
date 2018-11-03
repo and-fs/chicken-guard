@@ -1,7 +1,0 @@
-watchdog module
-===============
-
-.. automodule:: watchdog
-    :members:
-    :undoc-members:
-    :show-inheritance:

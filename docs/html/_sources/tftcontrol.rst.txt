@@ -1,7 +1,0 @@
-tftcontrol module
-=================
-
-.. automodule:: tftcontrol
-    :members:
-    :undoc-members:
-    :show-inheritance:

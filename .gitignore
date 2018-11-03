@@ -108,3 +108,4 @@ venv.bak/
 
 .vscode/launch.json
 resources/sensor.csv
+/docs/html
