@@ -1,6 +1,8 @@
 #! /usr/bin/python3
 # -*- coding: utf8 -*-
 """
+Enthält die in der Steuerung verwendeten Konstanten.
+
 Alle hier verwendeten PINs beziehen sich auf den BOARD-Mode,
 also die RPi-Nummerierung am Header.
 """
@@ -130,7 +132,7 @@ DUSK_OFFSET = 40 * 60
 EARLIEST_OPEN_TIMES = {
     0: (7, 00), # Montag
     1: (7, 00),
-    2: (7, 00), 
+    2: (7, 00),
     3: (7, 00),
     4: (7, 00),
     5: (8, 00), # Samstag
