@@ -8,7 +8,8 @@ import math
 import datetime
 import time
 # --------------------------------------------------------------------------------------------------
-from config import * # pylint: disable=W0614
+from constants import * # pylint: disable=W0614
+from shared import Config
 # --------------------------------------------------------------------------------------------------
 #: Längengrad des Standorts in RAD.
 LATITUDE_IN_RAD = math.radians(LATITUDE)
@@ -71,12 +72,12 @@ def GetSuntimes(current_datetime):
     von current_datatime.
     """
     dawn, dusk = CalculateSunTimes(current_datetime)
-    dawn += datetime.timedelta(seconds = DAWN_OFFSET)
-    hour, minute = EARLIEST_OPEN_TIMES.get(current_datetime.weekday(), (5, 30))
+    dawn += datetime.timedelta(seconds = Config.Get("DAWN_OFFSET"))
+    hour, minute = Config.Get("EARLIEST_OPEN_TIMES").get(current_datetime.weekday(), (5, 30))
     eot = datetime.time(hour = hour, minute = minute)
     if eot > dawn.time():
         dawn = dawn.replace(hour = hour, minute = minute)
-    dusk += datetime.timedelta(seconds = DUSK_OFFSET)
+    dusk += datetime.timedelta(seconds = Config.Get("DUSK_OFFSET"))
     return dawn, dusk
 # --------------------------------------------------------------------------------------------------
 def GetDoorAction(

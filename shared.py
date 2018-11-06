@@ -9,9 +9,11 @@ Enthält gemeinsam genutzte Klassen und Funktionen.
 import pathlib
 import logging
 import os
+import importlib
 from logging import handlers
 # --------------------------------------------------------------------------------------------------
-from config import * # pylint: disable=W0614
+import config
+from constants import * # pylint: disable=W0614
 # --------------------------------------------------------------------------------------------------
 #: Basispfad, hier liegen auch die Skripte und Module.
 root_path = pathlib.Path(__file__).parent
@@ -67,7 +69,7 @@ def configureLogging(name:str, filemode:str = 'a'):
     logger.setLevel(LOGLEVEL)
     logger.addHandler(handler)
     logger.info("Started, pid = %s.", os.getpid())
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 def getLogger(name = None, filemode = 'a'):
     """
     Liefert eine Logger-Instanz.
@@ -82,7 +84,7 @@ def getLogger(name = None, filemode = 'a'):
     """
     configureLogging('root' if (name is None) else name, filemode)
     return logging.getLogger(name)
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class LoggableClass:
     """
     Basisklasse für alle Klassen mit Logausgabe.
@@ -114,5 +116,81 @@ class LoggableClass:
         """
         if hasattr(self.logger, name):
             return getattr(self.logger, name)
-        raise AttributeError("Instance of %s has no attribute '%s'" % (self.__class__, name))
-# ------------------------------------------------------------------------
+        return Config.Get(name, match_exact = True)
+        #raise AttributeError("Instance of %s has no attribute '%s'" % (self.__class__, name))
+# --------------------------------------------------------------------------------------------------
+class _NOTSET:
+    pass
+# --------------------------------------------------------------------------------------------------
+class Config:
+
+    _instance = None
+
+    @classmethod
+    def Get(cls, name, default = _NOTSET, match_exact = False):
+        cfg = cls.GetInstance()
+        return cfg._Get(name, default, match_exact = match_exact)
+
+    @classmethod
+    def Set(cls, name, value, do_update = True):
+        cfg = cls.GetInstance()
+        cfg._Set(name, value, do_update = do_update)
+
+    @classmethod
+    def Update(cls):
+        cfg = cls.GetInstance()
+        cfg._Update()
+
+    @classmethod
+    def RegisterUpdateHandler(cls, hdl):
+        cfg = cls.GetInstance()
+        cfg._RegisterUpdateHandler(hdl)
+
+    @classmethod
+    def GetInstance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def __init__(self):
+        self.logger = getLogger(name = 'config')
+        self.update_handlers = set()
+
+    def _CallUpdateHandlers(self):
+        for hdl in self.update_handlers:
+            try:
+                hdl()
+            except Exception:
+                self.logger.exception('Error while calling update handler.')
+
+    def _Update(self):
+        importlib.reload(config)
+        self._CallUpdateHandlers()
+
+    def _RegisterUpdateHandler(self, hdl):
+        self.update_handlers.add(hdl)
+
+    def _Set(self, name, value, do_update = True):
+        self.logger.debug("Setting %r to %r.", name, value)
+        setattr(config, name, value)
+        if do_update:
+            self._CallUpdateHandlers()
+
+    def _Get(self, name, default = _NOTSET, match_exact = False):
+
+        if not match_exact:
+            v = getattr(config, name.upper(), _NOTSET)
+            if v != _NOTSET:
+                return v
+
+        v = getattr(config, name, _NOTSET)
+        if v != _NOTSET:
+            return v
+
+        if default != _NOTSET:
+            self.logger.warning('Config %r not found, return default %r.', name, default)
+            return default
+
+        self.logger.error('Config %r not found!', name)
+        raise AttributeError("No config %r found!" % (name,))
+# --------------------------------------------------------------------------------------------------

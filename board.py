@@ -121,7 +121,7 @@ import json
 # --------------------------------------------------------------------------------------------------
 from shared import LoggableClass, resource_path
 from gpio import GPIO, SMBus
-from config import * # pylint: disable=W0614
+from constants import * # pylint: disable=W0614
 # --------------------------------------------------------------------------------------------------
 def AnalogToCelsius(analog_value):
     """
@@ -580,14 +580,14 @@ class Board(LoggableClass):
             str_dir = "up"
             reed_pin = REED_UPPER
             end_state = DOOR_OPEN
-            max_duration = DOOR_MOVE_UP_TIME
-            reed_offset = UPPER_REED_OFFSET
+            max_duration = self.DOOR_MOVE_UP_TIME
+            reed_offset = self.UPPER_REED_OFFSET
         else:
             str_dir = "down"
             reed_pin = REED_LOWER
             end_state = DOOR_CLOSED
-            max_duration = DOOR_MOVE_DOWN_TIME
-            reed_offset = LOWER_REED_OFFSET
+            max_duration = self.DOOR_MOVE_DOWN_TIME
+            reed_offset = self.LOWER_REED_OFFSET
 
         can_move = not self.IsReedClosed(reed_pin)
         if can_move:
@@ -804,3 +804,12 @@ class Board(LoggableClass):
                 self.state_change_handler(self.GetState())
             except Exception:
                 self.exception("Error while calling state change handler.")
+
+    def UpdateConfig(self, cfgdict:dict): # pylint: disable=R0201
+        """
+        Aktualisiert die ``globals`` mit ``cfgdict``.
+
+        .. seealso::
+            :meth:`Controller.UpdateConfig`
+        """
+        globals().update(cfgdict)

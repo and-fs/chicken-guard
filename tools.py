@@ -11,7 +11,7 @@ import threading
 import xmlrpc.client
 # --------------------------------------------------------------------------------------------------
 from shared import LoggableClass
-from config import * # pylint: disable=W0614
+from constants import * # pylint: disable=W0614
 # --------------------------------------------------------------------------------------------------
 class CallError:
     """

@@ -14,7 +14,8 @@ _SetupPath()
 import unittest
 import base
 import board
-from config import * # pylint: disable=W0614; unused import
+from shared import Config
+from constants import * # pylint: disable=W0614; unused import
 from gpio import GPIO
 # --------------------------------------------------------------------------------------------------
 filestate = dict(saved = False, loaded = False)
@@ -71,7 +72,7 @@ class Test_TestBoard(base.TestCase):
         with GPIO.write_context():
             GPIO.output(REED_UPPER, REED_CLOSED) # oben auf LOW
 
-        ftr.WaitForResult(0.5 + UPPER_REED_OFFSET)
+        ftr.WaitForResult(0.5 +  Config.Get("UPPER_REED_OFFSET"))
 
         self.assertTrue(ftr.HasResult(), "OpenDoor() is finished.")
         self.assertTrue(_GetSaveState(), "Board state has been saved.")
@@ -119,7 +120,7 @@ class Test_TestBoard(base.TestCase):
         with GPIO.write_context():
             GPIO.output(REED_LOWER, REED_CLOSED) # unten auf LOW
 
-        ftr.WaitForResult(0.5 + LOWER_REED_OFFSET) # anderen Thread ranlassen
+        ftr.WaitForResult(0.5 + Config.Get("LOWER_REED_OFFSET")) # anderen Thread ranlassen
 
         self.assertTrue(ftr.HasResult(), "CloseDoor() is finished.")
 

@@ -22,9 +22,8 @@ from PIL import ImageFont, Image    # pylint: disable=E0401
 import shared
 from gpio import GPIO
 from shared import LoggableClass
-from config import * # pylint: disable=W0614
-from tools import AsyncFunc, CallError, InstallStateChangeHandler
-from datetime import datetime
+from constants import * # pylint: disable=W0614
+from tools import AsyncFunc, InstallStateChangeHandler
 # ------------------------------------------------------------------------
 class ScreenController(LoggableClass):
     DC = 24
@@ -55,10 +54,10 @@ class ScreenController(LoggableClass):
                      }
 
         self.setState({})
-        
+
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        
+
         self.tft = lib_tft24t.TFT24T(spidev.SpiDev(), GPIO, landscape = True)
         self.tft.initLCD(self.DC, self.RST, self.LED, switch_on = self.tft_state)
         self.tft.initTOUCH(self.TOUCH_IRQ)
@@ -93,7 +92,7 @@ class ScreenController(LoggableClass):
     def setState(self, state):
         # moving_up, closed, open, moving_down
         self.door_state = state.get("door", DOOR_NOT_MOVING)
-       
+
         try:
             tstr = "%2.f°C" % (state["temperature"],)
         except KeyError:
@@ -196,7 +195,7 @@ class ScreenController(LoggableClass):
                 self.drawScreen()
                 last_screen_update = time.time()
 
-    def onTouchEvent(self, channel):
+    def onTouchEvent(self, _channel):
         """
         Eventhandler für die Berührung am Bildschirm.
         """
@@ -333,7 +332,7 @@ class ScreenController(LoggableClass):
 
         draw.text((   5,  103), "Temperatur:", font = self.FONT, fill = "yellow")
         draw.text((  10,  120), self.state["temperature"], font = self.FONT_BIG, fill = "white", align = "right")
-        
+
         draw.text((  120,  103), "Lichtsensor:", font = self.FONT, fill = "yellow")
         draw.text((  130,  120), self.state["light_sensor"], font = self.FONT_BIG, fill = "white", align = "right")
 

@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore', r'.*using a (GPIO|SMBUS) mockup.*')
 if str(pathlib.Path(__file__).parent.parent) not in sys.path:
     sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 # --------------------------------------------------------------------------------------------------
-from config import * # pylint: disable=W0614,W0401
+from constants import * # pylint: disable=W0614,W0401
 import shared
 from gpio import GPIO
 # --------------------------------------------------------------------------------------------------

@@ -15,7 +15,7 @@ import os
 import subprocess
 import unittest
 import base
-from config import * # pylint: disable=W0614; unused import
+from constants import * # pylint: disable=W0614; unused import
 import watchdog
 # --------------------------------------------------------------------------------------------------
 class popenDummy():

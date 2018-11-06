@@ -14,7 +14,8 @@ def _SetupPath():
         sys.path.insert(0, root)
 _SetupPath()
 # --------------------------------------------------------------------------------------------------
-from config import *  # pylint: disable=W0614
+from shared import Config
+from constants import *  # pylint: disable=W0614
 import base
 import controlserver
 # --------------------------------------------------------------------------------------------------
@@ -55,8 +56,8 @@ class ControllerDummy:
 class Test_JobTimer(base.TestCase):
     def setUp(self):
         super().setUp()
-        controlserver.SWITCH_LIGHT_OFF_AFTER_CLOSING = 5  # 5 Sekunden nach Schließen aus
-        controlserver.SWITCH_LIGHT_ON_BEFORE_CLOSING = 10 # 10 Sekunden vor Schließen an
+        Config.Set("SWITCH_LIGHT_OFF_AFTER_CLOSING", 5) # 5 Sekunden nach Schließen aus
+        Config.Set("SWITCH_LIGHT_ON_BEFORE_CLOSING", 10) # 10 Sekunden vor Schließen an
         self.controller = ControllerDummy()
         self.timer = controlserver.JobTimer(self.controller)
 
@@ -106,7 +107,6 @@ class Test_JobTimer(base.TestCase):
         # und dem Thread nochmal kurz Zeit geben, etwas zu tun
         timer.Join(0.2)
 
-
         logger.info("Checking automatic state at %s", time.time())
         self.assertEqual(controller.automatic, DOOR_AUTO_ON, "Door automatic is reenabled.")
         self.assertGreater(timer.last_door_check, 0, "Door check done after reenabling automatic.")
@@ -120,7 +120,7 @@ class Test_JobTimer(base.TestCase):
                     # sollte die Lichtzeit berechnet worden sein
 
                     expected_off_time = dt + datetime.timedelta(
-                        seconds = controlserver.SWITCH_LIGHT_OFF_AFTER_CLOSING
+                        seconds = Config.Get("SWITCH_LIGHT_OFF_AFTER_CLOSING")
                     )
 
                     self.assertEqual(
@@ -129,7 +129,7 @@ class Test_JobTimer(base.TestCase):
                     )
 
                     expected_on_time = dt - datetime.timedelta(
-                        seconds = controlserver.SWITCH_LIGHT_ON_BEFORE_CLOSING
+                        seconds = Config.Get("SWITCH_LIGHT_ON_BEFORE_CLOSING")
                     )
 
                     self.assertEqual(

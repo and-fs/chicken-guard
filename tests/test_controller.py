@@ -15,7 +15,8 @@ import unittest
 import base
 import controlserver
 import board
-from config import * # pylint: disable=W0614; unused import
+from shared import Config
+from constants import * # pylint: disable=W0614; unused import
 from gpio import GPIO
 # ---------------------------------------------------------------------------------------
 def _DummyFunc(*_args, **_kwargs):
@@ -87,11 +88,11 @@ class Test_TestController(base.TestCase):
         self.assertTrue(ftr.WaitForResult(), "Door is open.")
 
         self.assertGreater(
-            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_UP_TIME"),
             "Door open duration has been reached.")
 
         self.assertLess(
-            ftr.GetRuntime(), DOOR_MOVE_UP_TIME * 1.4,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_UP_TIME") * 1.4,
             "Door open duration is below upper limit.")
 
     def test_OpenDoorByContact(self):
@@ -107,7 +108,7 @@ class Test_TestController(base.TestCase):
         self.assertTrue(ftr.WaitForResult(), "Door is open.")
 
         self.assertLess(
-            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_UP_TIME"),
             "Door open duration has not been reached due to contact.")
 
     def CloseDoorTest(self):
@@ -138,11 +139,11 @@ class Test_TestController(base.TestCase):
         self.assertTrue(ftr.WaitForResult(), "Door is closed.")
 
         self.assertGreater(
-            ftr.GetRuntime(), DOOR_MOVE_DOWN_TIME,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_DOWN_TIME"),
             "Door close duration has been reached.")
 
         self.assertLess(
-            ftr.GetRuntime(), DOOR_MOVE_DOWN_TIME * 1.5,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_DOWN_TIME") * 1.5,
             "Door close duration is below upper limit.")
 
     def test_CloseDoorByContact(self):
@@ -154,7 +155,7 @@ class Test_TestController(base.TestCase):
         self.assertTrue(ftr.WaitForResult(), "Door is closed.")
 
         self.assertLess(
-            ftr.GetRuntime(), DOOR_MOVE_UP_TIME,
+            ftr.GetRuntime(),  Config.Get("DOOR_MOVE_UP_TIME"),
             "Door close duration has not been reached due to contact.")
 # ---------------------------------------------------------------------------------------
 if __name__ == '__main__':

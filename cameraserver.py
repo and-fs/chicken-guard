@@ -40,7 +40,7 @@ import time
 from threading import Condition, RLock
 from http import server
 # --------------------------------------------------------------------------------------------------
-from config import * # pylint: disable=W0614
+from constants import * # pylint: disable=W0614
 from shared import LoggableClass, getLogger, resource_path
 # --------------------------------------------------------------------------------------------------
 #: Tuple aus (:data:`config.CAM_WIDTH`, :data:`config.CAM_HEIGHT`).

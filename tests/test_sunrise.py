@@ -15,7 +15,8 @@ import unittest
 from datetime import datetime, timedelta, time
 import sunrise
 import base
-from config import * # pylint: disable=W0614; unused import
+from shared import Config
+from constants import * # pylint: disable=W0614; unused import
 # --------------------------------------------------------------------------------------------------
 sdata = (
     # day, sunrise, sunset
@@ -47,15 +48,15 @@ def _exp_times(today, dawn, dusk):
     Liefert die erwarteten Öffnungs- / -schießzeiten am Tag `today` zu den
     Sonnenaufgangs- / -untergangszeiten `dusk` und `dawn`.
     """
-    h, m = EARLIEST_OPEN_TIMES[today.weekday()]
+    h, m = Config.Get("EARLIEST_OPEN_TIMES")[today.weekday()]
 
     earliest_open_time = datetime.combine(today, time(hour = h, minute = m))
-    expected_open_time = dawn + timedelta(seconds = DAWN_OFFSET)
+    expected_open_time = dawn + timedelta(seconds = Config.Get("DAWN_OFFSET"))
 
     if expected_open_time < earliest_open_time:
         expected_open_time = earliest_open_time
 
-    expected_close_time = dusk + timedelta(seconds = DUSK_OFFSET)
+    expected_close_time = dusk + timedelta(seconds = Config.Get("DUSK_OFFSET"))
     return (expected_open_time, expected_close_time)
 # --------------------------------------------------------------------------------------------------
 class Test_SunriseConsistency(base.TestCase):

@@ -20,7 +20,7 @@ import shared
 import board
 import sunrise
 from shared import LoggableClass, resource_path
-from config import * # pylint: disable=W0614
+from constants import * # pylint: disable=W0614
 # --------------------------------------------------------------------------------------------------
 class JobTimer(LoggableClass):
     """
@@ -195,7 +195,7 @@ class JobTimer(LoggableClass):
             Diese können dann direkt in :meth:`DoDoorCheck` verwendet werden.
         """
         # aktuelle Sonnenaufgangs / Untergangszeiten holen
-        if self.last_sunrise_check + SUNRISE_INTERVAL < now:
+        if self.last_sunrise_check + self.SUNRISE_INTERVAL < now:
             # es wird wieder mal Zeit (dawn = Morgens, dusk = Abends)
             self.info("Doing sunrise time check.")
             open_time, close_time = sunrise.GetSuntimes(dtnow)
@@ -205,7 +205,7 @@ class JobTimer(LoggableClass):
             self.controller.SetNextActions(next_steps)
             self.last_sunrise_check = now
 
-            if SWITCH_LIGHT_ON_BEFORE_CLOSING > 0:
+            if self.SWITCH_LIGHT_ON_BEFORE_CLOSING > 0:
                 # Wichtig: wenn das Licht zur Schließzeit der Tür automatisch
                 # getriggert wird, darf in dieser Zeit die Lichtschaltzeit nicht
                 # berechnet werden!
@@ -217,15 +217,15 @@ class JobTimer(LoggableClass):
 
                     light_ivl_start = (
                         self.light_switch_on_time -
-                        datetime.timedelta(seconds = DOORCHECK_INTERVAL)
+                        datetime.timedelta(seconds = self.DOORCHECK_INTERVAL)
                     )
 
                     light_ivl_end = (
                         self.light_switch_on_time +
-                        datetime.timedelta(seconds = DOORCHECK_INTERVAL)
+                        datetime.timedelta(seconds = self.DOORCHECK_INTERVAL)
                     )
 
-                    if (dtnow >= light_ivl_start) and (dtnow <= light_ivl_end):
+                    if light_ivl_start <= dtnow <= light_ivl_end:
                         # hier sind wir genau in der Lichtschaltzeit, also lassen wir hier
                         # die Berechnung aus und führen wir diese erst beim nächsten Mal durch,
                         # das reicht aus.
@@ -242,12 +242,19 @@ class JobTimer(LoggableClass):
                         if dt < dtnow:
                             continue
                         if action == DOOR_CLOSED:
+
                             self.light_switch_on_time = (
-                                dt - datetime.timedelta(seconds = SWITCH_LIGHT_ON_BEFORE_CLOSING)
+                                dt - datetime.timedelta(
+                                    seconds = self.SWITCH_LIGHT_ON_BEFORE_CLOSING
+                                )
                             )
+
                             self.light_switch_off_time = (
-                                dt + datetime.timedelta(seconds = SWITCH_LIGHT_OFF_AFTER_CLOSING)
+                                dt + datetime.timedelta(
+                                    seconds = self.SWITCH_LIGHT_OFF_AFTER_CLOSING
+                                )
                             )
+
                             self.info(
                                 "Calculated new light switch times: on at %s, off at %s.",
                                 self.light_switch_on_time, self.light_switch_off_time
@@ -297,7 +304,7 @@ class JobTimer(LoggableClass):
 
         if self.controller.automatic == DOOR_AUTO_ON:
             # müssen wir die Tür öffnen / schließen?
-            if self.last_door_check + DOORCHECK_INTERVAL < now:
+            if self.last_door_check + self.DOORCHECK_INTERVAL < now:
                 self.logger.debug("Doing door automatic check.")
                 self.last_door_check = now
                 action = sunrise.GetDoorAction(dtnow, open_time, close_time)
@@ -323,7 +330,7 @@ class JobTimer(LoggableClass):
         :param float now: Aktuelle Zeit in Sekunden (siehe ``time.time()``).
         """
         if self.next_sensor_check < now:
-            self.next_sensor_check = now + SENSOR_INTERVALL
+            self.next_sensor_check = now + self.SENSOR_INTERVALL
             self.controller._ReadSensors() # pylint: disable=W0212
 
     def DoLightCheck(self, dtnow:datetime.datetime):
@@ -345,7 +352,7 @@ class JobTimer(LoggableClass):
                 if self.controller.IsIndoorLightOn():
                     self.info(
                         "Switching light off %.0f seconds after closing door.",
-                        SWITCH_LIGHT_OFF_AFTER_CLOSING
+                        self.SWITCH_LIGHT_OFF_AFTER_CLOSING
                     )
                     self.controller.SwitchIndoorLight(False)
                 self.light_switch_on_time = None
@@ -354,7 +361,7 @@ class JobTimer(LoggableClass):
                 if not self.controller.IsIndoorLightOn():
                     self.info(
                         "Switching light on %.0f seconds before closing door.",
-                        SWITCH_LIGHT_ON_BEFORE_CLOSING
+                        self.SWITCH_LIGHT_ON_BEFORE_CLOSING
                     )
                     self.controller.SwitchIndoorLight(True)
 
@@ -399,7 +406,7 @@ class JobTimer(LoggableClass):
                 break
 
             with self._terminate_condition:
-                if self._terminate_condition.wait(DOORCHECK_INTERVAL):
+                if self._terminate_condition.wait(self.DOORCHECK_INTERVAL):
                     self.debug("Terminate condition is notified.")
 
         # falls jetzt noch jemand im Join hängt, wird der auch benachrichtigt.
@@ -741,10 +748,11 @@ class Controller(LoggableClass):
         else:
             # nur wenn die Automatik nicht bereits dauerhaft deaktiviert war,
             # stellen wir hier eine zeitbegrenzte Automatik ein
-            self.automatic_enable_time = time.time() + DOOR_AUTOMATIC_OFFTIME
+            self.automatic_enable_time = time.time() + self.DOOR_AUTOMATIC_OFFTIME
             self.automatic = DOOR_AUTO_OFF
             self.info(
-                "Door automatic disabled for the next %.2f seconds", float(DOOR_AUTOMATIC_OFFTIME)
+                "Door automatic disabled for the next %.2f seconds",
+                float(self.DOOR_AUTOMATIC_OFFTIME)
             )
 
         self._UpdateBoardState()
@@ -787,7 +795,7 @@ class Controller(LoggableClass):
                 f.write(SENSOR_LINE_TPL % (self.light_sensor, self.temperature))
         except Exception:
             self.exception("Error while writing to %s", self.sensor_file)
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """
     SimpleXMLRPC-Server, jeder Request wird in einem eigenen Thread ausgeführt.
