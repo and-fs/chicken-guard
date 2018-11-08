@@ -215,11 +215,25 @@ class Config:
 
         .. seealso::
 
+            :meth:`RemoveUpdateHandler`
             :meth:`Update`
             :meth:`Set`
         """
         cfg = cls.GetInstance()
         cfg._RegisterUpdateHandler(hdl)
+
+    @classmethod
+    def RemoveUpdateHandler(cls, hdl):
+        """
+        Gegenstück zu :meth:`RegisterUpdateHandler`, entfernt den Handler ``hdl`` wieder.
+
+        .. seealso::
+
+            :meth:`RegisterUpdateHandler`
+            :meth:`Update`
+        """
+        cfg = cls.GetInstance()
+        cfg._RemoveUpdateHandler(hdl)
 
     @classmethod
     def GetInstance(cls):
@@ -248,15 +262,18 @@ class Config:
     def _RegisterUpdateHandler(self, hdl):
         self.update_handlers.add(hdl)
 
+    def _RemoveUpdateHandler(self, hdl):
+        self.update_handlers.discard(hdl)
+
     def _Set(self, name, value, do_update = True):
         self.logger.debug("Setting %r to %r.", name, value)
         setattr(config, name, value)
         if do_update:
             self._CallUpdateHandlers()
 
-    def _Get(self, name, default = _NOTSET, match_exact = False):
+    def _Get(self, name, default = _NOTSET, case_sensitive = False):
 
-        if not match_exact:
+        if not case_sensitive:
             v = getattr(config, name.upper(), _NOTSET)
             if v != _NOTSET:
                 return v

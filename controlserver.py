@@ -19,7 +19,7 @@ import datetime
 import shared
 import board
 import sunrise
-from shared import LoggableClass, resource_path
+from shared import LoggableClass, resource_path, Config
 from constants import * # pylint: disable=W0614
 # --------------------------------------------------------------------------------------------------
 class JobTimer(LoggableClass):
@@ -82,6 +82,10 @@ class JobTimer(LoggableClass):
         #: Falls ``None``, erfolgt kein Zeitgesteuertes Schalten der Innenbeleuchtung.
         self.light_switch_on_time = None
 
+        # jetzt noch den der Konfiguration Bescheid geben, dass bei einer Aktualisierung
+        # :meth:`ResetCheckTimes` gerufen werden soll
+        Config.RegisterUpdateHandler(self.ResetCheckTimes)
+
     def Terminate(self):
         """
         Setzt das :attr:`Termination-Flag<_terminate>` und veranlasst so den
@@ -92,6 +96,7 @@ class JobTimer(LoggableClass):
             :meth:`IsRunning`
         """
         self.info("Terminating JobTimer.")
+        Config.RemoveUpdateHandler(self.ResetCheckTimes)
         with self._terminate_condition:
             self._terminate = True
             self._terminate_condition.notify_all()
@@ -469,6 +474,8 @@ class Controller(LoggableClass):
         self.light_sensor = 0
         self.sensor_file = resource_path / SENSORFILE
 
+        Config.RegisterUpdateHandler(self._UpdateBoardState)
+
         self.board.SetStateChangeHandler(self._BoardStateChanged)
 
         self.job_timer = JobTimer(self)
@@ -773,6 +780,7 @@ class Controller(LoggableClass):
         """
         Räumt die Instanz auf und hält den :class:`JobTimer` synchron an.
         """
+        Config.RemoveUpdateHandler(self._UpdateBoardState)
         self.job_timer.Terminate()
         self.job_timer.Join(6.0)
         self.job_timer = None
@@ -795,6 +803,17 @@ class Controller(LoggableClass):
                 f.write(SENSOR_LINE_TPL % (self.light_sensor, self.temperature))
         except Exception:
             self.exception("Error while writing to %s", self.sensor_file)
+
+    def ReloadConfig(self): # pylint: disable=R0201
+        """
+        Lädt die beweglichen Konfigurationswert aus :mod:`config` nach und berechnet die
+        daraus resultierenden Zeiten neu.
+
+        .. seealso::
+
+            :class:`shared.Config`
+        """
+        Config.Update()
 # --------------------------------------------------------------------------------------------------
 class DataServer(socketserver.ThreadingMixIn, xmlrpc.server.SimpleXMLRPCServer):
     """
