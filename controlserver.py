@@ -100,7 +100,7 @@ class JobTimer(LoggableClass):
                 # geprüft werden)
                 if not self.light_switch_on_time is None:
                     light_ivl_start = self.light_switch_on_time - datetime.timedelta(seconds = DOORCHECK_INTERVAL)
-                    light_ivl_end = self.light_switch_on_time + datetime.timedelta(seconds = DOORCHECK_INTERVAL)
+                    light_ivl_end = self.light_switch_off_time + datetime.timedelta(seconds = DOORCHECK_INTERVAL)
 
                     if (dtnow >= light_ivl_start) and (dtnow <= light_ivl_end):
                         # hier sind wir genau in der Lichtschaltzeit, also lassen wir hier die Berechnung

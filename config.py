@@ -121,20 +121,20 @@ DOOR_AUTO_ON = 1                #: Türautomatik aktiv
 DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
 
 #: Anzahl Sekunden nach Sonnenaufgang, in der die Tür geöffnet wird
-DAWN_OFFSET = -30 * 60
+DAWN_OFFSET = -15 * 60
 
 #: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
-DUSK_OFFSET = 40 * 60
+DUSK_OFFSET = 50 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
-    0: (7, 00), # Montag
-    1: (7, 00),
-    2: (7, 00), 
-    3: (7, 00),
-    4: (7, 00),
-    5: (8, 00), # Samstag
-    6: (8, 00), # Sonntag
+    0: (5, 30), # Montag
+    1: (5, 30),
+    2: (5, 30), 
+    3: (5, 30),
+    4: (5, 30),
+    5: (7, 30), # Samstag
+    6: (7, 30), # Sonntag
 }
 # ------------------------------------------------------------------------
 #: Tür Stati.
@@ -146,7 +146,7 @@ DOOR_OPEN = 4          #: Tür ist offen
 DOOR_CLOSED = 8        #: Tür ist geschlossen
 # ------------------------------------------------------------------------
 DOOR_MOVE_UP_TIME = 8.5    #: Maximale Zeit die die Tür zum Öffnen benötigt
-DOOR_MOVE_DOWN_TIME = 6.6  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+DOOR_MOVE_DOWN_TIME = 6.5  #7.6  #: Maximale Zeit zum Schließen der Tür (Sekunden)
 LOWER_REED_OFFSET = 0.6    #: Dauer in Sekunden die die Tür nach Signalisierung
                            #: durch den unteren Magnetschalter weiter läuft,
                            #: damit die Tür vollständig geschlossen ist
@@ -156,11 +156,11 @@ UPPER_REED_OFFSET = 0.6    #: Wie :data:`LOWER_REED_OFFSET` für den oberen
 #: Gibt an, wieviel Sekunden vor den Schließen der Tür die Innen-
 #: beleuchtung aktiviert werden soll.
 #: 0 = aus
-SWITCH_LIGHT_ON_BEFORE_CLOSING = 0
+SWITCH_LIGHT_ON_BEFORE_CLOSING = 3600
 
 #: Wie SWITCH_LIGHT_ON_BEFORE_CLOSING, allerdings die Ausschaltzeit nach
 #: dem Schließen. Ist nur relevant, wenn SWITCH_LIGHT_ON_BEFORE_CLOSING != 0
-SWITCH_LIGHT_OFF_AFTER_CLOSING = (1 * 60) if SWITCH_LIGHT_ON_BEFORE_CLOSING else 0
+SWITCH_LIGHT_OFF_AFTER_CLOSING = (3 * 60) if SWITCH_LIGHT_ON_BEFORE_CLOSING else 0
 # ------------------------------------------------------------------------
 CAM_WIDTH = 640    #: Breite des gestreamten Kamerabildes
 CAM_HEIGHT = 480   #: Höhe des gestreamten Kamerabildes
