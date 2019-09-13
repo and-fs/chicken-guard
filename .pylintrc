@@ -140,12 +140,13 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
-        #W0703,
+        W0703, # catching too general exception
         C0326, # no space allowed around kwargs
         #C0303,
         #C0330,
         C0304, # final newline missing
         W0401, # Wildcard import
+        C0412, # imports from package are noct grouped
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

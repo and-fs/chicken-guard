@@ -2,11 +2,19 @@
 # -*- coding: utf8 -*-
 # --------------------------------------------------------------------------------------------------
 # pylint: disable=C0413, C0111, C0103
+# --------------------------------------------------------------------------------------------------
+def _SetupPath():
+    import sys
+    import pathlib
+    root = str(pathlib.Path(__file__).parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+_SetupPath()
+# --------------------------------------------------------------------------------------------------
 import unittest
 from datetime import datetime, timedelta, time
-# --------------------------------------------------------------------------------------------------
 import sunrise
-from tests import base
+import base
 from config import * # pylint: disable=W0614; unused import
 # --------------------------------------------------------------------------------------------------
 sdata = (

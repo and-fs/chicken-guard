@@ -3,40 +3,45 @@
 """
 Dieses Script startet und überwacht alle Skripte für die Steuerung und
 Überwachung des Chicken-Guard.
-Diese werden in :py:data:`_scripts` abgelegt.
+Diese werden in :data:`_SCRIPTS` abgelegt.
 
 Das sind:
-* Der Server für die WebCam (*cameraserver.py*)
-* Der Boardcontroller (*controlserver.py*)
-* Der Displaycontroller (*tftcontrol.py*)
+  - Der Server für die WebCam (*cameraserver.py*)
+  - Der Boardcontroller (*controlserver.py*)
+  - Der Displaycontroller (*tftcontrol.py*)
 
 Beispiel:
 
-.. highlight::
+.. code-block:: python
+
     # Initialisieren mit foo und bar Skripten aus dem
     # selben Verzeichnis
     w = Watchdog(scripts = ['foo.py', 'bar.py])
     w()
 
-Logging erfolg nach *watchdog.log* (siehe dazu :py:class:`LoggableClass`).
+Logging erfolg nach *watchdog.log* (siehe dazu :class:`shared.LoggableClass`).
 """
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 import sys
 import subprocess
 import signal
 import time
 from shared import LoggableClass, root_path
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+
 #: Liste mit den zu startenden und überwachenden Python-Scripts.
-_scripts = ('controlserver.py', 'cameraserver.py', 'tftcontrol.py')
+_SCRIPTS = ('controlserver.py', 'cameraserver.py', 'tftcontrol.py')
 
 #: SIGINT funktioniert unter Windows nicht, aber auch dort
 #: gibt es nur CLTR_C_EVENT, also nehmen wir das wenn verfügbar.
 SIGINT = getattr(signal, 'CTRL_C_EVENT', signal.SIGINT)
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 class Watchdog(LoggableClass):
+    """
+    Instanzen dieser Klasse starten und überwachen Python-Skripte.
+    """
 
-    def __init__(self, scripts = _scripts):
+    def __init__(self, scripts:list = _SCRIPTS):
         """
         Initialisiert die Instanz.
         :param sequence _scripts: Eine Liste von Python-Script-Dateinamen
@@ -54,11 +59,13 @@ class Watchdog(LoggableClass):
         #: Run-Flag, kann auf Fals gesetzt werden um die Loop zu beenden.
         self._run = True
 
-    def StartSingle(self, scriptname):
+    def StartSingle(self, scriptname:str)->subprocess.Popen:
         """
         Startet ein einzelnes Python-Script.
+
         :param str scriptname: Name der Scriptdatei (inklusive Endung).
             Wird relativ zu :py:data:`root_path` aufgelöst.
+
         :returns: Das Popen-Objekt im Erfolgsfall, sonst *None*.
         """
         scriptpath = root_path / scriptname
@@ -73,14 +80,14 @@ class Watchdog(LoggableClass):
         self.info("Started '%s' with pid %s.", scriptname, p.pid)
         return p
 
-    def StartAll(self):
+    def StartAll(self)->bool:
         """
         Startet alle Scripte aus :py:attr:`scripts`.
         Wenn alle erfolgreich gestartet wurden, ist die Rückgabe *True*.
         Schlägt mindestens ein Start fehl, wird das weitere Starten hier
         abgebrochen und *False* zurückgeliefert.
         Zwischen den Starts wird immer 1 Sekunde gewartet.
-        Jeder gestartete Prozess wird zu :py:attr:`processes` hinzugefügt.
+        Jeder gestartete Prozess wird zu :attr:`processes` hinzugefügt.
         """
         for scriptname in self.scripts:
             p = self.StartSingle(scriptname)
@@ -90,16 +97,16 @@ class Watchdog(LoggableClass):
             time.sleep(1) # kurz warten, damit der Prozess hochfahren kann
         return True
 
-    def Run(self):
+    def Run(self)->bool:
         """
         Die Mainloop des Watchers.
-        Startet alle Skripte aus :py:attr:`scripts` und überwacht diese.
+        Startet alle Skripte aus :attr:`scripts` und überwacht diese.
         Wird eines der Skripte vorzeitig beendet, wird es neu gestartet.
-        Beenden der Loop erfolgt mit *SIGINT*.
+        Beenden der Loop erfolgt mit ``SIGINT``.
         Zwischen **jeder** Loop wird :py:attr:`looptime` Sekunden geschlafen.
 
-        :returns: *False* wenn der Start der Skripte zu Beginn fehlgeschlagen
-            ist, sonst immer *True*.
+        :returns: ``False`` wenn der Start der Skripte zu Beginn fehlgeschlagen
+            ist, sonst immer ``True``.
         """
         self.info("Started.")
 
@@ -145,7 +152,7 @@ class Watchdog(LoggableClass):
         self.info("Finished.")
         return True
 
-    def _CheckExitCode(self, process):
+    def _CheckExitCode(self, process:subprocess.Popen):
         exitcode = process.poll()
         if not exitcode is None:
             self.info(
@@ -154,7 +161,7 @@ class Watchdog(LoggableClass):
             )
             self.processes.discard(process)
 
-    def _Kill(self, process):
+    def _Kill(self, process:subprocess.Popen):
         try:
             process.kill()
         except Exception as e: # pylint: disable=W0703
@@ -170,10 +177,10 @@ class Watchdog(LoggableClass):
     def Cleanup(self):
         """
         Räumt alle gestarten Prozesse weg.
-        Zuerst wird versucht, ein :py:data:`SIGINT` an den Prozess zu schicken.
+        Zuerst wird versucht, ein :data:`SIGINT` an den Prozess zu schicken.
         Sollte das fehlschlagen oder der Prozess nach 5 Sekunden immer noch laufen,
-        wird *SIGKILL* geschickt.
-        Im Erfolgsfall ist :py:attr:`processes` nach Ende dieser Methode immer
+        wird ``SIGKILL`` geschickt.
+        Im Erfolgsfall ist :attr:`processes` nach Ende dieser Methode immer
         leer.
         """
         self.info("Cleaning up.")
@@ -184,7 +191,10 @@ class Watchdog(LoggableClass):
                     try:
                         p.send_signal(SIGINT)
                     except Exception as e: # pylint: disable=W0703
-                        self.error("Failed to send SIGINT to '%s' with PID %d: %s", p.name, p.pid, e)
+                        self.error(
+                            "Failed to send SIGINT to '%s' with PID %d: %s",
+                            p.name, p.pid, e
+                        )
                         self._Kill(p)
                     else:
                         self.info("Sent SIGINT to '%s' with PID %d.", p.name, p.pid)
@@ -216,6 +226,10 @@ class Watchdog(LoggableClass):
             self.exception("Error during cleanup.")
 
     def Terminate(self):
+        """
+        Setzt das Terminierungsflag für die Loop in :meth:`Run`, worauf
+        sich diese im nächsten Durchlauf selbst beenden sollte.
+        """
         self._run = False
 
     def __call__(self):
@@ -231,10 +245,13 @@ class Watchdog(LoggableClass):
             self.exception("Unhandled error!")
         finally:
             self.Cleanup()
-# ------------------------------------------------------------------------
-def main():
+# --------------------------------------------------------------------------------------------------
+def Main():
+    """
+    Erzeugt einen :class:`Watchdog` und führt diesen aus.
+    """
     watchdog = Watchdog()
     watchdog()
-# ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    main()
+    Main()
