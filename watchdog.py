@@ -30,7 +30,12 @@ from shared import LoggableClass, root_path
 # --------------------------------------------------------------------------------------------------
 
 #: Liste mit den zu startenden und überwachenden Python-Scripts.
-_SCRIPTS = ('controlserver.py', 'cameraserver.py', 'tftcontrol.py')
+_SCRIPTS = (
+    'controlserver.py',
+    'cameraserver.py',
+    'tftcontrol.py',
+    'tempcheck/temperaturecontrol.py'
+)
 
 #: SIGINT funktioniert unter Windows nicht, aber auch dort
 #: gibt es nur CLTR_C_EVENT, also nehmen wir das wenn verfügbar.
