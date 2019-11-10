@@ -1,3 +1,6 @@
 [submodule "gpio"]
 	path = gpiomockup
 	url = https://github.com/and-fs/pigpio-mockup.git
+[submodule "tempcheck"]
+	path = tempcheck
+	url = https://github.com/and-fs/temperature-alarm.git
