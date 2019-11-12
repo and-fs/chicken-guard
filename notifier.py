@@ -5,15 +5,11 @@ der Überwachungskamera.
 """
 # --------------------------------------------------------------------------------------------------
 import threading
-import requests
 from io import BytesIO
-from datetime import datetime
 # --------------------------------------------------------------------------------------------------
+import requests
 import config
 from tempcheck import settings
-from shared import getLogger
-# --------------------------------------------------------------------------------------------------
-logger = getLogger('notifier')
 # --------------------------------------------------------------------------------------------------
 STEADY_URL = 'http://localhost:%s/steady.jpg' % (config.CAM_PORT,)
 
@@ -31,7 +27,7 @@ MESSAGE_DELAY = {
     config.DOOR_CLOSED: config.NOTIFY_DOOR_CLOSED_DELAY,
 }
 # --------------------------------------------------------------------------------------------------
-def SendSteadyShot(message):
+def SendSteadyShot(logger, message):
     """
     Schickt ein aktuelles Bild von der Kamera mit der Nachricht ``message`` an den Telegram-Bot.
     Das Bild wird dabei vom Kameraserver per HTTP-Request geholt.
@@ -82,7 +78,7 @@ def SendSteadyShot(message):
         logger.exception('Received unexpected result from Bot.')
 
 # --------------------------------------------------------------------------------------------------
-def NotifyDoorAction(action, dtnow, open_time, close_time):
+def NotifyDoorAction(logger, action, dtnow, open_time, close_time):
     """
     Schickt eine Nachricht über :func:`SendSteadyShot` über die Änderung des Türzustands.
     Das Verschicken erfolgt asynchron in einem separatem Thread.
@@ -111,6 +107,6 @@ def NotifyDoorAction(action, dtnow, open_time, close_time):
         threading.Timer(
             delay,
             SendSteadyShot,
-            args = (message,)
+            args = (logger, message,)
         ).start()
 # --------------------------------------------------------------------------------------------------

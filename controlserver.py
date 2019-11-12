@@ -298,13 +298,17 @@ class JobTimer(LoggableClass):
                     if not self.controller.IsDoorClosed():
                         self.info("Closing door, currently is night.")
                         self.controller._CloseDoorFromTimer() # pylint: disable=W0212
-                        notifier.NotifyDoorAction(DOOR_CLOSED, dtnow, open_time, close_time)
+                        notifier.NotifyDoorAction(
+                            self.logger, DOOR_CLOSED, dtnow, open_time, close_time
+                        )
                 else:
                     # wir sind nach Sonnenauf- aber vor Sonnenuntergang
                     if not self.controller.IsDoorOpen():
                         self.info("Opening door, currently is day.")
                         self.controller._OpenDoorFromTimer() # pylint: disable=W0212
-                        notifier.NotifyDoorAction(DOOR_OPEN, dtnow, open_time, close_time)
+                        notifier.NotifyDoorAction(
+                            self.logger, DOOR_OPEN, dtnow, open_time, close_time
+                        )
         else:
             self.logger.debug("Skipped door check, automatic is off.")
 
