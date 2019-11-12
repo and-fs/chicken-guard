@@ -162,7 +162,7 @@ SWITCH_LIGHT_ON_BEFORE_CLOSING = 3600
 
 #: Wie SWITCH_LIGHT_ON_BEFORE_CLOSING, allerdings die Ausschaltzeit nach
 #: dem Schließen. Ist nur relevant, wenn SWITCH_LIGHT_ON_BEFORE_CLOSING != 0
-SWITCH_LIGHT_OFF_AFTER_CLOSING = (3 * 60) if SWITCH_LIGHT_ON_BEFORE_CLOSING else 0
+SWITCH_LIGHT_OFF_AFTER_CLOSING = (10 * 60) if SWITCH_LIGHT_ON_BEFORE_CLOSING else 0
 # ------------------------------------------------------------------------
 CAM_WIDTH = 640    #: Breite des gestreamten Kamerabildes
 CAM_HEIGHT = 480   #: Höhe des gestreamten Kamerabildes
