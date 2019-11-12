@@ -185,3 +185,7 @@ BTN_DURATION_SHUTDOWN = 6.0
 #: Achtung: dieser Wert muss KLEINER als BTN_DURATION_SHUTDOWN sein
 BTN_DURATION_REBOOT = 2.0
 # ------------------------------------------------------------------------
+#: Dauer in Sekunden, die nach Aktion der Tür gewartet wird, bis die
+#: Nachricht dazu verschickt wird.
+NOTIFY_DOOR_OPEN_DELAY = 5 * 60.0
+NOTIFY_DOOR_CLOSED_DELAY = 1 * 60.0

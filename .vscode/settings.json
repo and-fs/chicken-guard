@@ -1,9 +1,9 @@
 {
-    "python.unitTest.unittestEnabled": true,
-    "python.unitTest.pyTestEnabled": false,
-    "python.unitTest.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": true,
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
     "files.trimTrailingWhitespace": true,
-    "python.unitTest.unittestArgs": [
+    "python.testing.unittestArgs": [
         "-v",
         "-f",
         "-s",

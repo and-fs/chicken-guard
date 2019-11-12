@@ -45,6 +45,10 @@ from shared import LoggableClass, getLogger, resource_path
 # --------------------------------------------------------------------------------------------------
 #: Tuple aus (:data:`config.CAM_WIDTH`, :data:`config.CAM_HEIGHT`).
 RESOLUTION = (CAM_WIDTH, CAM_HEIGHT)
+
+#: Nummer des Frames, welcher bei Steady verschickt werden soll, wenn die Kamera nicht
+#: bereits aktiv war. Damit werden etwaige Bilder in der Ausbalancierungsphase übersprungen.
+SKIP_STEADY_FRAMES = 5
 # --------------------------------------------------------------------------------------------------
 try:
     from picamera import PiCamera
@@ -276,6 +280,96 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
     """
     Handler für GET-Requests an den :class:`StreamingServer`.
     """
+    # ----------------------------------------------------------------------------------------------
+    def _GetFrame(self, logger, output):
+        with output.condition:
+            if not output.condition.wait(20.0):
+                logger.warning("Condition not notified in time.")
+                raise TimeoutError("Camera timeout.")
+            return output.frame
+    # ----------------------------------------------------------------------------------------------
+    def _SendDefaultHeader(self):
+        self.send_response(200)
+        self.send_header('Age', 0)
+        self.send_header('Cache-Control', 'no-cache, private')
+        self.send_header('Pragma', 'no-cache')
+    # ----------------------------------------------------------------------------------------------
+    def _SendSingleFrame(self, frame):
+        self.send_header('Content-Type', 'image/jpeg')
+        self.send_header('Content-Length', len(frame))
+        self.end_headers()
+        self.wfile.write(frame)
+        self.wfile.write(b'\r\n')
+    # ----------------------------------------------------------------------------------------------
+    def SteadyRequest(self, logger):
+        """
+        Request eines einzelnen Bildes.
+        """
+        # wenn die Kamera nicht aktiv ist, die ersten Frames skippen
+        skip_frames = max(1, SKIP_STEADY_FRAMES + 1 if not camera.counter else 0)
+
+        with camera as output:
+            frame = None
+            try:
+                while skip_frames:
+                    frame = self._GetFrame(logger, output)
+                    skip_frames -= 1
+            except Exception as exc:
+                self.logger.exception("Error while steady image request.")
+                self.send_error(
+                    504,
+                    message = "Failed to get camera image",
+                    explain = "Failed to get camera image: %s" % (exc,)
+                )
+            else:
+                self._SendDefaultHeader()
+                self._SendSingleFrame(frame)
+    # ----------------------------------------------------------------------------------------------
+    def StreamRequest(self, logger):
+        """
+        Ausgabe des Kamera-Streams als MJPEG.
+        """
+        if camera.counter >= MAX_STREAM_COUNT:
+            self.send_error(
+                503,
+                message = "Maximum stream count reached.",
+                explain = "Server is limited to a maximum of %d "
+                          "parallel streams which has been reached now." % (MAX_STREAM_COUNT,)
+            )
+            return
+
+        self._SendDefaultHeader()
+        self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
+        self.end_headers()
+
+        try:
+            end_time = time.time() + MAX_STREAM_TIME
+            logger.info("Started streaming")
+            with camera as output:
+                while end_time > time.time():
+                    frame = self._GetFrame(logger, output)
+                    self.wfile.write(b'--FRAME\r\n')
+                    self._SendSingleFrame(frame)
+            logger.info("Stream reached timeout, stopped.")
+            self.wfile.write(b'--FRAME\r\n')
+            self.send_error(
+                503,
+                message = "Stream timeout reached",
+                explain = "Stream has a time limit of %.0f "
+                          "seconds which exceeded." % (MAX_STREAM_TIME,)
+            )
+            self.end_headers()
+        except TimeoutError as e:
+            # wurde bereits ausgegeben, hier geben wir nur die Info an den Aufrufer zurück
+            self.wfile.write(b'--FRAME\r\n')
+            self.send_error(
+                503,
+                message = "Camera timeout reached",
+                explain = "Camera didn't deliver image within 20s, stopped."
+            )
+        except Exception as e:
+            logger.info("Disconnected, stopped streaming (%s).", e)
+    # ----------------------------------------------------------------------------------------------
     def do_GET(self):
         """
         Wird gerufen, um ein GET-Request zu behandeln.
@@ -286,6 +380,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                                das ``/stream.mjpg`` lädt)
             - ``/stream.mjpg``: Ausgabe des Kamerastreams. Siehe den Abschnitt *Restriktionen*
                                 weiter oben.
+            - ``/steady.jpg``: Einzelnes Standbild. Hier greifen die Restriktionen nicht.
 
         In allen anderen Fällen wird ein 404-Response ausgegeben.
         """
@@ -293,60 +388,22 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         logger = getLogger(name)
         logger.debug("Handling request: %r", self.path)
         if self.path == '/':
+            # -----[Zugriff auf Basis-URL, hier leiten wir nach /index.html um]-----
             self.send_response(301)
             self.send_header('Location', '/index.html')
             self.end_headers()
         elif self.path == '/index.html':
+            # -----[Zugriff auf index.html, Ausgabe von PAGE]-----
             content = PAGE.encode('utf-8')
             self.send_response(200)
-            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', len(content))
             self.end_headers()
             self.wfile.write(content)
+        elif self.path == '/steady.jpg':
+            self.SteadyRequest(logger)
         elif self.path == '/stream.mjpg':
-            if camera.counter >= MAX_STREAM_COUNT:
-                self.send_error(
-                    503,
-                    message = "Maximum stream count reached.",
-                    explain = "Server is limited to a maximum of %d "
-                              "parallel streams which has been reached now." % (MAX_STREAM_COUNT,)
-                )
-                return
-
-            self.send_response(200)
-            self.send_header('Age', 0)
-            self.send_header('Cache-Control', 'no-cache, private')
-            self.send_header('Pragma', 'no-cache')
-            self.send_header('Content-Type',
-                             'multipart/x-mixed-replace; boundary=FRAME')
-            self.end_headers()
-
-            try:
-                end_time = time.time() + MAX_STREAM_TIME
-                logger.info("Started streaming")
-                with camera as output:
-                    while end_time > time.time():
-                        with output.condition:
-                            if not output.condition.wait(20.0):
-                                logger.warning("Condition not notified in time.")
-                                raise TimeoutError("Camera timeout.")
-                            frame = output.frame
-                        self.wfile.write(b'--FRAME\r\n')
-                        self.send_header('Content-Type', 'image/jpeg')
-                        self.send_header('Content-Length', len(frame))
-                        self.end_headers()
-                        self.wfile.write(frame)
-                        self.wfile.write(b'\r\n')
-                logger.info("Stream reached timeout, stopped.")
-                self.wfile.write(b'--FRAME\r\n')
-                self.send_error(
-                    503,
-                    message = "Stream timeout reached",
-                    explain = "Stream has a time limit of %.0f "
-                              "seconds which exceeded." % (MAX_STREAM_TIME,))
-                self.end_headers()
-            except Exception as e:
-                logger.info("Disconnected, stopped streaming (%s).", e)
+            self.StreamRequest(logger)
         else:
             self.send_error(404, message = "Invalid path %r" % (self.path,))
             self.end_headers()
