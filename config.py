@@ -123,10 +123,10 @@ DOOR_AUTO_ON = 1                #: Türautomatik aktiv
 DOOR_AUTO_DEACTIVATED = -1      #: Türautomatik dauerhaft deaktiviert
 
 #: Anzahl Sekunden nach Sonnenaufgang, in der die Tür geöffnet wird
-DAWN_OFFSET = -15 * 60
+DAWN_OFFSET = -30 * 60
 
 #: Anzahl Sekunden nach Sonnenuntergang, in der die Tür geschlossen wird.
-DUSK_OFFSET = 50 * 60
+DUSK_OFFSET = 30 * 60
 
 #: Zeitpunkt des frühesten Öffnens der Tür
 EARLIEST_OPEN_TIMES = {
@@ -147,8 +147,8 @@ DOOR_MOVING = DOOR_MOVING_UP | DOOR_MOVING_DOWN #: Tür in Bewegung
 DOOR_OPEN = 4          #: Tür ist offen
 DOOR_CLOSED = 8        #: Tür ist geschlossen
 # ------------------------------------------------------------------------
-DOOR_MOVE_UP_TIME = 8.5    #: Maximale Zeit die die Tür zum Öffnen benötigt
-DOOR_MOVE_DOWN_TIME = 6.5  #7.6  #: Maximale Zeit zum Schließen der Tür (Sekunden)
+DOOR_MOVE_UP_TIME = 10.5   #: Maximale Zeit die die Tür zum Öffnen benötigt
+DOOR_MOVE_DOWN_TIME = 8.5  #: Maximale Zeit zum Schließen der Tür (Sekunden)
 LOWER_REED_OFFSET = 0.6    #: Dauer in Sekunden die die Tür nach Signalisierung
                            #: durch den unteren Magnetschalter weiter läuft,
                            #: damit die Tür vollständig geschlossen ist
